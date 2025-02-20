@@ -2,6 +2,8 @@
 local ExportConfig = require("PLS.Insert.Conf.Path")
 -- RegX正则匹配规则
 local RegX_Rule = "regX Param"
+-- 分隔符配置项
+local SeparatorConfig = ",\n"  -- 默认分隔符为逗号加换行符
 
 -- 定义一个函数来提取包含正则结果的键值对
 local function extractExportData(config)
@@ -35,7 +37,7 @@ end
 table.sort(sortedKeys)
 
 -- 定义一个函数来处理打印和文件写入
-local function processOutput(data, filename)
+local function processOutput(data, filename, separator)
     local file
     if filename then
         file = io.open(filename, "w")
@@ -45,28 +47,24 @@ local function processOutput(data, filename)
         end
     end
 
-    local lastKey = sortedKeys[#sortedKeys]
+    local output = {}
     for _, key in ipairs(sortedKeys) do
-        local output = key .. " = \"" .. data[key] .. "\""
-        if file then
-            if key == lastKey then
-                file:write(output) -- 删除: file:write(output .. "\n")
-            else
-                file:write(output .. "\n")
-            end
-        else
-            print(output)
-        end
+        table.insert(output, key .. " = \"" .. data[key] .. "\"")
     end
 
+    -- 使用传入的分隔符
+    local outputString = table.concat(output, separator)
     if file then
+        file:write(outputString)
         file:close()
         print("数据已保存到 " .. filename)
+    else
+        print(outputString)
     end
 end
 
 -- 打印结果
-processOutput(exportData)
+processOutput(exportData, nil, SeparatorConfig)
 
 -- 将结果保存到文件（可选）
-processOutput(exportData, "exportData.txt")
+processOutput(exportData, "exportData.txt", SeparatorConfig)
