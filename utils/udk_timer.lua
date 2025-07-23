@@ -177,6 +177,8 @@ function UDK_Timer.GetTimerTime(timerID, unit)
     return nil, "Timer not found"
 end
 
+---| 📘- 暂停计时器
+---@param timerID string|number 定时器名称或ID
 function UDK_Timer.PauseTimer(timerID)
     local meta = timer[timerID]
     if meta then
