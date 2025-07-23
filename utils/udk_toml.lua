@@ -347,6 +347,7 @@ local function parse_table_header(line, data)
     end
 end
 
+---|📘- Toml库 - 解析Toml数据
 ---@param toml_string string Toml字符串
 ---@return table data 解析结果
 function UDK_Toml_Lib.Parse(toml_string)
