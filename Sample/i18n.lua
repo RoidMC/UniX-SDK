@@ -1,4 +1,4 @@
-local UDK = require("Floder.SDKPath")
+local UDK = require("Floder.SDKPath.main")
 
 local Lang = [[
     [zh-CN]
