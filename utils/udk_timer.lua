@@ -29,8 +29,8 @@ local function getTimestamp()
 end
 
 ---|📘- 生成NanoID
---- @param size number? ID长度，默认21
---- @return string
+---@param size number? ID长度，默认21
+---@return string
 local function nanoIDGenerate(size)
     math.randomseed(getTimestamp()) -- 初始化随机种子
     size = size or 21
@@ -44,10 +44,10 @@ local function nanoIDGenerate(size)
 end
 
 ---|📘- 创建定时器元数据
---- @param label any 用户定义的标签
---- @param timerId number 系统分配的定时器ID
---- @param duration_ms number 初始持续时间（毫秒）
---- @param allowOverride boolean 是否允许覆盖现有标签
+---@param label any 用户定义的标签
+---@param timerId number 系统分配的定时器ID
+---@param duration_ms number 初始持续时间（毫秒）
+---@param allowOverride boolean 是否允许覆盖现有标签
 local function createTimerMeta(label, timerId, duration_ms, allowOverride)
     if timer[label] and allowOverride then
         -- 销毁旧定时器实例
