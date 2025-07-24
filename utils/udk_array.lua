@@ -1,5 +1,5 @@
 -- ==================================================
--- * UniX SDK -  Array
+-- * UniX SDK - Array
 -- * Version: 0.0.1
 -- *
 -- * License: MPL-2.0
