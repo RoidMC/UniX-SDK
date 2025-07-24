@@ -368,7 +368,7 @@ function UDK_UI.SetNativeInterfaceVisible(interfaceType, isVisible)
             UI:SetNativeInterfaceVisible(v, isVisible)
             logIndex = v + 1
             logOutput = string.format(
-                "[UDK_UI] SetNativeInterfaceVisible: 原生控件 %s (TypeID %s) 可见性已经设置为 %s (QueryType: %s | Param: %s)",
+                "[UDK:UI] SetNativeInterfaceVisible: 原生控件 %s (TypeID %s) 可见性已经设置为 %s (QueryType: %s | Param: %s)",
                 nativeInterfaceMap[logIndex].desc, nativeInterfaceMap[logIndex].type, isVisible, queryType, v)
             ULogPrint("INFO", logOutput)
         else
