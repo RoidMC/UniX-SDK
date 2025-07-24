@@ -32,7 +32,7 @@ local function saveTypeGet(saveType)
     return return_saveType
 end
 
----| -📘 云存储玩家的数据
+---|📘- 云存储玩家的数据
 ---<br>
 ---| `范围`：`服务端`
 ---@param player number 玩家ID
@@ -62,7 +62,7 @@ function UDK_Storage.ArchiveUpload(player, saveType, saveName, saveData, autoInc
     end
 end
 
----| -📘 云存储获取玩家数据
+---|📘- 云存储获取玩家数据
 ---<br>
 ---| `范围`：`服务端`
 ---@param player number 玩家ID
