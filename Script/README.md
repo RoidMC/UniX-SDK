@@ -1,6 +1,6 @@
 ![Header](https://capsule-render.vercel.app/api?type=Waving&color=timeGradient&height=200&animation=fadeIn&section=header&text=UniX%20Dev%20Kit&fontSize=65)
 
-# UniX Dev Kit Script Utils
+# UniX SDK Script Utils
 
 - 📚 **需要LUA标准环境**
 - 📚 **此区域为脚本库，仅使用LUA标准库编写**
