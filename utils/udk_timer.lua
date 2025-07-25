@@ -76,6 +76,8 @@ local function createTimerMeta(label, timerId, duration_ms, allowOverride)
 end
 
 ---|📘- 创建正向计时器
+---<br>
+---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-timer/#udktimerstartforwardtimer)
 ---@param label any 用户定义的标签
 ---@param duration number 时间值
 ---@param unit string? 时间单位('s'或'ms')
@@ -108,6 +110,8 @@ function UDK_Timer.StartForwardTimer(label, duration, unit, allowOverride)
 end
 
 ---|📘- 创建倒数计时器
+---<br>
+---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-timer/#udktimerstartbackwardtimer)
 ---@param label any 用户定义的标签
 ---@param duration number 时间值
 ---@param isLoop boolean? 是否循环(默认false)
@@ -161,6 +165,8 @@ function UDK_Timer.StartBackwardTimer(label, duration, isLoop, unit, allowOverri
 end
 
 ---|📘- 获取定时器剩余时间
+---<br>
+---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-timer/#udktimergettimertime)
 ---@param timerID string|number 定时器名称或ID
 ---@param unit string? 时间单位('s'或'ms')，默认's'
 ---@return number?  time 剩余时间(根据unit的值，默认s)
@@ -178,6 +184,8 @@ function UDK_Timer.GetTimerTime(timerID, unit)
 end
 
 ---|📘- 暂停计时器
+---<br>
+---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-timer/#udktimerpausetimer)
 ---@param timerID string|number 定时器名称或ID
 function UDK_Timer.PauseTimer(timerID)
     local meta = timer[timerID]
@@ -195,6 +203,8 @@ function UDK_Timer.PauseTimer(timerID)
 end
 
 ---|📘- 恢复计时器
+---<br>
+---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-timer/#udktimerresumetimer)
 ---@param timerID string|number 定时器标签
 function UDK_Timer.ResumeTimer(timerID)
     local meta = timer[timerID]
@@ -212,6 +222,8 @@ function UDK_Timer.ResumeTimer(timerID)
 end
 
 ---|📘- 重置定时器
+---<br>
+---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-timer/#udktimerresettimer)
 ---@param timerID string|number 定时器名称或ID
 ---@param duration number 新的持续时间值
 ---@param unit string? 时间单位('s'或'ms')，默认's'
@@ -243,6 +255,8 @@ function UDK_Timer.ResetTimer(timerID, duration, unit)
 end
 
 ---|📘- 删除定时器
+---<br>
+---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-timer/#udktimerremovetimer)
 ---@param timerID string|number 定时器名称或ID
 function UDK_Timer.RemoveTimer(timerID)
     local meta = timer[timerID]

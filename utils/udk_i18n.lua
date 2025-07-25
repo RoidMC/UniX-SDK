@@ -21,7 +21,7 @@ local UDK_I18N = {}
 ---<br>
 ---| `使用方法：UDK.I18N.I18NGetKey("keyName", "zh-CN", i18n_Toml)`
 ---<br>
----| [API文档](https://wiki.roidmc.com/docs/unix-sdk) | [示例代码](https://github.com/RoidMC/UniX-SDK/blob/master/Sample/i18n.lua)
+---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-i18n/#udki18ni18ngetkey)
 ---@param key string 键名
 ---@param i18n_lang string 语言
 ---@param i18n_Toml table 配置表
