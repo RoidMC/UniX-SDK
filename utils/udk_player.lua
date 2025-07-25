@@ -28,7 +28,7 @@ end
 
 ---|📘- 获取房主玩家ID
 ---<br>
----| `范围`：`服务端`、`客户端`
+---| `范围`：`服务端`
 ---@return number returnData 房主玩家ID
 function UDK_Player.GetHomeowner()
     local returnData = MiscService:GetHomeOwner()
@@ -73,10 +73,10 @@ function UDK_Player.GetPlayerHeadIcon(player)
     return returnData
 end
 
----|📘- 根据ID获取队伍内的所有玩家
+---|📘- 根据ID获取阵营内的所有玩家
 ---<br>
 ---| `范围`：`服务端`、`客户端`
----@param teamId number 队伍ID
+---@param teamId number 阵营ID
 ---@return table returnData  阵营内玩家数组ID
 function UDK_Player.GetTeamPlayers(teamId)
     local returnData = Team:GetTeamPlayerArray(teamId)
