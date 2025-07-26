@@ -50,12 +50,22 @@ local function ULogPrint(level, message)
     end
 end
 
+-- 检查是否是客户端
+local function checkIsClient(apiName)
+    if not System:IsClient() then
+        local logOutput = string.format("[UDK:System] 接口 %s 仅允许在客户端侧调用", apiName)
+        ULogPrint("ERROR", logOutput)
+        return
+    end
+end
+
 ---|📘- 设置UI可见性
 ---<br>
 ---| `范围`：`客户端`
 ---@param showWidgetIDs any | any[] 要显示的控件ID列表
 ---@param hideWidgetIDs any | any[] 要隐藏的控件ID列表
 function UDK_UI.SetUIVisibility(showWidgetIDs, hideWidgetIDs)
+    checkIsClient("UDK.UI.SetUIVisibility")
     local oneItem
     if type(hideWidgetIDs) == "table" then
         UI:SetVisible(hideWidgetIDs, false)
@@ -81,6 +91,7 @@ end
 ---@param newWidth number  要设置的宽度
 ---@param newHeight number 要设置的高度
 function UDK_UI.SetUISize(widgetID, newWidth, newHeight)
+    checkIsClient("UDK.UI.SetUISize")
     local oneItem = {}
     if type(widgetID) == "table" then
         UI:SetSize(widgetID, newWidth, newHeight)
@@ -97,6 +108,7 @@ end
 ---@param newX number  要设置的新坐标X
 ---@param newY number 要设置的新坐标Y
 function UDK_UI.SetUIPostion(widgetID, newX, newY)
+    checkIsClient("UDK.UI.SetUIPostion")
     local oneItem = {}
     if type(widgetID) == "table" then
         UI:SetPosition(widgetID, newX, newY)
@@ -112,6 +124,7 @@ end
 ---@param widgetID any | any[] 要设置文本的控件ID列表
 ---@param data any 需要变更的数据{X,Y,Left,Right,Bottom,Top}
 function UDK_UI.SetUIPositionByAnchor(widgetID, data)
+    checkIsClient("UDK.UI.SetUIPositionByAnchor")
     local oneItem = {}
     if type(widgetID) == "table" then
         UI:SetPositionByAnchor(widgetID, data)
@@ -127,6 +140,7 @@ end
 ---@param widgetID any | any[] 要设置文本的控件ID列表
 ---@param newOpacity number  要设置的不透明度（范围：0-1，使用小数点）
 function UDK_UI.SetUITransparency(widgetID, newOpacity)
+    checkIsClient("UDK.UI.SetUITransparency")
     local oneItem = {}
     if type(widgetID) == "table" then
         UI:SetTransparency(widgetID, newOpacity)
@@ -142,6 +156,7 @@ end
 ---@param widgetID any | any[] 要设置文本的控件ID列表
 ---@param content string 要设置的文本内容
 function UDK_UI.SetUIText(widgetID, content)
+    checkIsClient("UDK.UI.SetUIText")
     local oneItem = {}
     if type(widgetID) == "table" then
         UI:SetText(widgetID, content)
@@ -157,6 +172,7 @@ end
 ---@param widgetID any | any[] 要设置文本的控件ID列表
 ---@param hexColor string 要设置的颜色（Hex 颜色码 - 例如：#FFFFFF）
 function UDK_UI.SetUITextColor(widgetID, hexColor)
+    checkIsClient("UDK.UI.SetUITextColor")
     local oneItem = {}
     if type(widgetID) == "table" then
         UI:SetTextColor(widgetID, hexColor)
@@ -172,6 +188,7 @@ end
 ---@param widgetID any | any[] 要设置文本的控件ID列表
 ---@param content number 要设置的大小（范围：15-100）
 function UDK_UI.SetUITextSize(widgetID, content)
+    checkIsClient("UDK.UI.SetUITextSize")
     local oneItem = {}
     if type(widgetID) == "table" then
         UI:SetTextSize(widgetID, content)
@@ -187,6 +204,7 @@ end
 ---@param imageID any 要设置的图片ID
 ---@param widgetID any | any[] 要设置底图的控件ID列表
 function UDK_UI.SetUIImage(widgetID, imageID)
+    checkIsClient("UDK.UI.SetUIImage")
     local oneItem = {}
     if type(widgetID) == "table" then
         UI:SetImage(widgetID, imageID)
@@ -202,6 +220,7 @@ end
 ---@param hexColor string 要设置的颜色（Hex 颜色码 - 例如：#FFFFFF）
 ---@param widgetID any | any[] 要设置文本的控件ID列表
 function UDK_UI.SetUIImageColor(widgetID, hexColor)
+    checkIsClient("UDK.UI.SetUIImageColor")
     local oneItem = {}
     if type(widgetID) == "table" then
         UI:SetImageColor(widgetID, hexColor)
@@ -217,6 +236,7 @@ end
 ---@param widgetID any 要设置的控件ID
 ---@param maxValue number 要设置的最大值（范围：0-100）
 function UDK_UI.SetUIProgressMaxValue(widgetID, maxValue)
+    checkIsClient("UDK.UI.SetUIProgressMaxValue")
     local oneItem = {}
     if type(widgetID) == "table" then
         UI:SetProgressMaxValue(widgetID, maxValue)
@@ -232,6 +252,7 @@ end
 ---@param widgetID any 要设置的控件ID
 ---@param currentValue number 要设置的当前值
 function UDK_UI.SetUIProgressCurrentValue(widgetID, currentValue)
+    checkIsClient("UDK.UI.SetUIProgressCurrentValue")
     local oneItem = {}
     if type(widgetID) == "table" then
         UI:SetProgressCurrentValue(widgetID, currentValue)
@@ -247,6 +268,7 @@ end
 ---@param widgetID any 要设置的控件ID
 ---@param imageID any 要设置的图片ID
 function UDK_UI.SetUIProgressBackgroundImage(widgetID, imageID)
+    checkIsClient("UDK.UI.SetUIProgressBackgroundImage")    
     local oneItem = {}
     if type(widgetID) == "table" then
         UI:SetProgressBackgroundImage(widgetID, imageID)
@@ -265,6 +287,7 @@ end
 ---@param playerID number 要设置的玩家ID
 ---@param setType string 要设置的类型（Icon：头像，Name：昵称，Both：头像+昵称）
 function UDK_UI.SetPlayerIconAndName(widgetID, playerID, setType)
+    checkIsClient("UDK.UI.SetPlayerIconAndName")
     --功能/社交/头像昵称控件
     local oneItem = {}
     local function getAvatarType(param)
@@ -292,6 +315,7 @@ end
 ---@param widgetID any 要获取尺寸的控件ID
 ---@return  number[] table  返回一个包含宽度和高度的数组，返回{X,Y}
 function UDK_UI.GetUISize(widgetID)
+    checkIsClient("UDK.UI.GetUISize")
     return UI:GetSize(widgetID)
 end
 
@@ -303,6 +327,7 @@ end
 ---@param widgetID any 要获取尺寸的控件ID
 ---@return  number[] table  返回一个包含UI控件位置的数组，返回{X,Y}
 function UDK_UI.GetUIPosition(widgetID)
+    checkIsClient("UDK.UI.GetUIPosition")
     return UI:GetPosition(widgetID)
 end
 
@@ -312,6 +337,7 @@ end
 ---@param widgetID any | any[] 要获取尺寸的控件ID
 ---@return  number[] table  返回以锚点为参考的位置数据{X,Y,Left,Right,Bottom,Top}
 function UDK_UI.GetUIAnchoredPosition(widgetID)
+    checkIsClient("UDK.UI.GetUIAnchoredPosition")
     local oneItem = {}
     local returnData
     if type(widgetID) == "table" then
@@ -333,6 +359,7 @@ end
 ---@param interfaceType any | any[] 要设置的原生界面ID列表
 ---@param isVisible boolean 是否可见
 function UDK_UI.SetNativeInterfaceVisible(interfaceType, isVisible)
+    checkIsClient("UDK.UI.SetNativeInterfaceVisible")
     local nativeInterfaceMap = {
         { id = 0, type = UI.UIType.Promotion, desc = "竞速的晋级界面", match_str = "Promotion" },
         { id = 1, type = UI.UIType.Countdown, desc = "竞速的倒计时界面", match_str = "Countdown" },
@@ -404,6 +431,7 @@ end
 ---| `可用于制作提示弹窗，制作时测试API所在事件是否触发等`
 ---@param message string 要展示的信息
 function UDK_UI.ShowMessageTip(message)
+    checkIsClient("UDK.UI.ShowMessageTip")
     UI:ShowMessageTip(message)
 end
 
