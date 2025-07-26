@@ -59,6 +59,23 @@ local function checkIsClient(apiName)
     end
 end
 
+---|📘- 自动按钮处理器
+---@param buttonData table 按钮数据
+---@param event string 事件类型（Pressed/Released/Moved/Clicked）
+local function AutoButtonHandler(buttonData, event, actMap)
+    local ActMapping = actMap -- 加载配置
+
+    if not ActMapping then
+        --local logOutput = "[UDK:UI] ButtonEvent按钮自动处理失败，请检查按钮ID配置"
+        --ULogPrint("ERROR", logOutput)
+        return
+    end
+
+    if ActMapping[buttonData.BtnID] and ActMapping[buttonData.BtnID][event] then
+        ActMapping[buttonData.BtnID][event](buttonData.BtnID, buttonData.PressX, buttonData.PressY) -- 执行对应事件处理
+    end
+end
+
 ---|📘- 设置UI可见性
 ---<br>
 ---| `范围`：`客户端`
@@ -268,7 +285,7 @@ end
 ---@param widgetID any 要设置的控件ID
 ---@param imageID any 要设置的图片ID
 function UDK_UI.SetUIProgressBackgroundImage(widgetID, imageID)
-    checkIsClient("UDK.UI.SetUIProgressBackgroundImage")    
+    checkIsClient("UDK.UI.SetUIProgressBackgroundImage")
     local oneItem = {}
     if type(widgetID) == "table" then
         UI:SetProgressBackgroundImage(widgetID, imageID)
@@ -444,6 +461,100 @@ function UDK_UI.PrintTable(name, table)
         print("  [" .. tostring(k) .. "] = " .. tostring(v))
     end
     print("}")
+end
+
+---|📘- 注册按钮事件
+---<br>
+---| `范围`：`客户端`
+---<br>
+---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/)
+---@param buttonID number|number[] 按钮ID（可以使用数组批量注册）
+---@param callbackActMap table? 按钮点击回调函数
+---| `回调ActMap参数`
+---| `Pressed`: 按钮按下事件
+---| `Released`: 按钮弹起事件
+---| `Moved`: 当按钮被拖动事件，要在按钮UI打开“允许拖动”
+---| `Clicked`: 按钮点击事件（此事件不支持传参X, Y轴数据使用会返回0）
+function UDK_UI.RegisterButtonEvent(buttonID, callbackActMap)
+    checkIsClient("UDK.UI.RegisterButtonEvent")
+    local logOutput
+    local ItemList = {}
+    if buttonID == nil then
+        logOutput = "[UDK:UI] RegisterButtonEvent: 参数缺失, ButtonID 不能为空"
+        ULogPrint("ERROR", logOutput)
+        return
+    end
+    if type(buttonID) ~= "table" and type(buttonID) == "number" then
+        table.insert(ItemList, buttonID)
+    elseif type(buttonID) == "table" then
+        ItemList = buttonID
+    end
+    for _, v in ipairs(ItemList) do
+        UI:RegisterPressed(v, function(ItemUID, PosX, PosY)
+            --print("ButtonPress")
+            local data = {
+                BtnID = ItemUID,
+                PressX = PosX,
+                PressY = PosY,
+            }
+            AutoButtonHandler(data, "Pressed", callbackActMap)
+        end)
+        UI:RegisterReleased(v, function(ItemUID, PosX, PosY)
+            --print("ButtonReleased")
+            local data = {
+                BtnID = ItemUID,
+                PressX = PosX,
+                PressY = PosY,
+            }
+            AutoButtonHandler(data, "Released", callbackActMap)
+        end)
+        UI:RegisterMoved(v, function(ItemUID, PosX, PosY)
+            --print("ButtonMoved")
+            local data = {
+                BtnID = ItemUID,
+                PressX = PosX,
+                PressY = PosY,
+            }
+            AutoButtonHandler(data, "Moved", callbackActMap)
+        end)
+        UI:RegisterClicked(v, function(ItemUID)
+            --print("ButtonClicked")
+            local data = {
+                BtnID = ItemUID,
+                PressX = 0,
+                PressY = 0,
+            }
+            AutoButtonHandler(data, "Clicked", callbackActMap)
+        end)
+    end
+end
+
+---|📘- 注销按钮事件
+---<br>
+---| `范围`：`客户端`
+---<br>
+---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/)
+---@param buttonID number|number[] 要注销的按钮ID（可以使用数组批量注销）
+function UDK_UI.UnRegisterButtonEvent(buttonID)
+    checkIsClient("UDK.UI.UnRegisterButtonEvent")
+    local logOutput
+    local ItemList = {}
+    if buttonID == nil then
+        logOutput = "[UDK:UI] UnRegisterButtonEvent: 参数缺失, ButtonID 不能为空"
+        ULogPrint("ERROR", logOutput)
+        return
+    end
+    if type(buttonID) ~= "table" and type(buttonID) == "number" then
+        table.insert(ItemList, buttonID)
+    elseif type(buttonID) == "table" then
+        ItemList = buttonID
+    end
+    for _, v in ipairs(ItemList) do
+        UI:UnRegisterPressed(v)
+        UI:UnRegisterReleased(v)
+        UI:UnRegisterMoved(v)
+        UI:UnRegisterClicked(v)
+    end
 end
 
 return UDK_UI
