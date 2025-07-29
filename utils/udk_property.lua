@@ -562,7 +562,7 @@ local function debugValidateColor(value)
 end
 
 -- 验证属性值类型
----@param object string 对象标识符
+---@param object string|number 对象标识符
 ---@param propertyType string 属性类型
 ---@param value any 属性值
 ---@return boolean isValid 是否有效
