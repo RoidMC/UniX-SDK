@@ -47,11 +47,11 @@ UDK_Property.TYPE = {
 }
 
 UDK_Property.NetMsg = {
-    ServerSync = 20000,
-    ClientSync = 20001,
-    ServerSendAuthorityData = 20002,
-    ClientQueryAuthorityData = 20003,
-    ServerAuthoritySync = 20010,
+    ServerSync = 200000,
+    ClientSync = 200001,
+    ServerSendAuthorityData = 200002,
+    ClientQueryAuthorityData = 200003,
+    ServerAuthoritySync = 200010,
 }
 
 UDK_Property.SyncConf = {
