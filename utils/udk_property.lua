@@ -47,11 +47,11 @@ UDK_Property.TYPE = {
 }
 
 UDK_Property.NetMsg = {
-    ServerSync = 20000,
-    ClientSync = 20001,
-    ServerSendAuthorityData = 20002,
-    ClientQueryAuthorityData = 20003,
-    ServerAuthoritySync = 20010,
+    ServerSync = 200000,
+    ClientSync = 200001,
+    ServerSendAuthorityData = 200002,
+    ClientQueryAuthorityData = 200003,
+    ServerAuthoritySync = 200010,
 }
 
 UDK_Property.SyncConf = {
@@ -562,7 +562,7 @@ local function debugValidateColor(value)
 end
 
 -- 验证属性值类型
----@param object string 对象标识符
+---@param object string|number 对象标识符
 ---@param propertyType string 属性类型
 ---@param value any 属性值
 ---@return boolean isValid 是否有效

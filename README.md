@@ -31,8 +31,8 @@ UniX SDK采用双重许可：
 
 ```lua
 -- GameEntry.lua
--- 加载SDK全部功能
-local UDK = require("Server.sdk.unix-sdk.main")
+-- 加载SDK全部功能（根据项目需求修改Require路径和main中的对应绝对路径）
+local UDK = require("Public.UniX-SDK.main")
 
 local Enum_Test_Array = {
     Test="Hello World!",
@@ -88,6 +88,9 @@ UDK.UI.SetNativeInterfaceVisible(
 ## 📄 归属声明
 
 使用UniX SDK的应用程序必须在用户界面中显示"Powered by UniX SDK"，详细要求请参阅[ATTRIBUTION.md](./docs/ATTRIBUTION.md)。
+
+> [!IMPORTANT]
+> 在使用SDK时请勿占用SDK保留的NetMsg ID，范围200000-250000，占用导致的报错不在我们的处理范围内
 
 ---
 
