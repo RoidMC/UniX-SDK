@@ -47,7 +47,7 @@ end
 ---@param label any 用户定义的标签
 ---@param timerId number 系统分配的定时器ID
 ---@param duration_ms number 初始持续时间（毫秒）
----@param allowOverride boolean 是否允许覆盖现有标签
+---@param allowOverride boolean? 是否允许覆盖现有标签
 local function createTimerMeta(label, timerId, duration_ms, allowOverride)
     if timer[label] and allowOverride then
         -- 销毁旧定时器实例
@@ -86,7 +86,7 @@ end
 function UDK_Timer.StartForwardTimer(label, duration, unit, allowOverride)
     local timeDelta_ms = 100 -- 时间间隔100ms
     local timerId
-    label = label or "forward_" .. nanoIDGenerate(8)
+    label = label or ("forward_" .. nanoIDGenerate(8))
     unit = unit or "s" -- 默认单位为秒
 
     -- 统一转为毫秒存储
@@ -120,7 +120,7 @@ end
 ---@return string label 定义的标签
 function UDK_Timer.StartBackwardTimer(label, duration, isLoop, unit, allowOverride)
     local timeDelta_ms = 100                                   -- 每次减少的时间(毫秒)
-    local timerUUID = label or "backward_" .. nanoIDGenerate() -- 生成一个唯一的定时器ID
+    local timerUUID = label or ("backward_" .. nanoIDGenerate()) -- 生成一个唯一的定时器ID
     local timerId
     isLoop = isLoop or false
 
@@ -142,7 +142,7 @@ function UDK_Timer.StartBackwardTimer(label, duration, isLoop, unit, allowOverri
             local meta = timer[timerUUID]
             -- 使用整数毫秒计算
             meta.remaining_ms = math.max(0, meta.remaining_ms - timeDelta_ms)
-            local seconds = meta.remaining_ms / 1000
+            --local seconds = meta.remaining_ms / 1000
 
             -- 格式化显示为1位小数
             -- print(string.format("%.1f", seconds))
