@@ -396,6 +396,7 @@ function UDK_UI.SetNativeInterfaceVisible(interfaceType, isVisible)
     local targetIDs = {}
     local queryType
     local logOutput
+    local logStr = "[UDK:UI] SetNativeInterfaceVisible: 原生控件 %s (TypeID %s) 可见性已经设置为 %s (QueryType: %s | Param: %s)"
     -- 因为Lua的table索引是从1开始的，所以这里需要+1，处理位于遍历代码内，而ID是从0开始的
     -- 仅Number类型的ID需要+1，String类型的ID不需要+1
     local logIndex
@@ -411,9 +412,8 @@ function UDK_UI.SetNativeInterfaceVisible(interfaceType, isVisible)
             queryType = "Number"
             UI:SetNativeInterfaceVisible(v, isVisible)
             logIndex = v + 1
-            logOutput = string.format(
-                "[UDK:UI] SetNativeInterfaceVisible: 原生控件 %s (TypeID %s) 可见性已经设置为 %s (QueryType: %s | Param: %s)",
-                nativeInterfaceMap[logIndex].desc, nativeInterfaceMap[logIndex].type, isVisible, queryType, v)
+            logOutput = string.format(logStr, nativeInterfaceMap[logIndex].desc, nativeInterfaceMap[logIndex].type,
+            isVisible, queryType, v)
             ULogPrint("INFO", logOutput)
         else
             for _, entry in ipairs(nativeInterfaceMap) do
@@ -421,9 +421,7 @@ function UDK_UI.SetNativeInterfaceVisible(interfaceType, isVisible)
                     targetIDs[entry.id] = true
                     queryType = "String"
                     UI:SetNativeInterfaceVisible(entry.type, isVisible)
-                    logOutput = string.format(
-                        "[UDK:UI] SetNativeInterfaceVisible: 原生控件 %s (TypeID %s) 可见性已经设置为 %s (QueryType: %s | Param: %s)",
-                        entry.desc, entry.type, isVisible, queryType, entry.match_str)
+                    logOutput = string.format(logStr, entry.desc, entry.type, isVisible, queryType, entry.match_str)
                     ULogPrint("INFO", logOutput)
                     break
                 end

@@ -33,11 +33,7 @@ function UDK_Event.FireSignEvent(eventName, playerID)
         or { playerID }
 
     -- 判断targets是否为空表
-    local isEmpty = true
-    for _ in pairs(targets) do
-        isEmpty = false
-        break
-    end
+    local isEmpty = next(targets) == nil
 
     -- 根据targets是否为空表执行不同的FireSignEvent
     if isEmpty then

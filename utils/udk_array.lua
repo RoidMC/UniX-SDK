@@ -22,7 +22,7 @@ local UDK_Array = {}
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-array/#udkarraygetvaluebyenum)
 ---@param table table Table表
 ---@param target string|number Key值或Value值
----@return string|number key 返回的Key值或Value值
+---@return string|number|nil key 返回的Key值或Value值（如果找不到，则返回nil）
 function UDK_Array.GetValueByEnum(table, target)
     -- 如果输入是字符串（Key），直接返回值
     if type(target) == "string" then
