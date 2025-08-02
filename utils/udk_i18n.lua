@@ -31,9 +31,9 @@ function UDK_I18N.I18NGetKey(key, i18n_lang, i18n_Toml)
     local i18nTable = i18n_Toml[currentLang]
 
     -- 递归解析复杂键
-    local function parseKey(tbl, key)
+    local function parseKey(tbl, parseKeyName)
         local keys = {}
-        for k in key:gmatch("[^%.%[%]]+") do
+        for k in parseKeyName:gmatch("[^%.%[%]]+") do
             table.insert(keys, k)
         end
 
@@ -52,10 +52,13 @@ function UDK_I18N.I18NGetKey(key, i18n_lang, i18n_Toml)
         return current_value
     end
 
-    if parseKey(i18nTable, key) ~= nil then
-        return parseKey(i18nTable, key)
+    local parsedValue = parseKey(i18nTable, key)
+    if parsedValue ~= nil then
+        return parsedValue
     else
-        return "Missing Key: " .. key .. " Lang: " .. currentLang
+        local logOutput = string.format("[UDK:I18N] Missing Key: %s Lang: %s", key, currentLang)
+        Log:PrintError(logOutput)
+        return logOutput
     end
 end
 
