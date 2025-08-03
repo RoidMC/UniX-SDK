@@ -48,7 +48,8 @@ end
 ---@param timerId number 系统分配的定时器ID
 ---@param duration_ms number 初始持续时间（毫秒）
 ---@param allowOverride boolean? 是否允许覆盖现有标签
-local function createTimerMeta(label, timerId, duration_ms, allowOverride)
+---@param callback function? 用户自定义回调函数
+local function createTimerMeta(label, timerId, duration_ms, allowOverride, callback)
     if timer[label] and allowOverride then
         -- 销毁旧定时器实例
         local oldMeta = timer[label]
@@ -70,7 +71,8 @@ local function createTimerMeta(label, timerId, duration_ms, allowOverride)
         id = timerId,
         remaining_ms = duration_ms,
         duration_ms = duration_ms,
-        active = true
+        active = true,
+        callback = callback
     }
     return label
 end
@@ -82,8 +84,9 @@ end
 ---@param duration number 时间值
 ---@param unit string? 时间单位('s'或'ms')
 ---@param allowOverride boolean? 是否允许覆盖现有标签
+---@param callback function? 自定义回调代码，定时器触发时调用
 ---@return string label 定义的标签
-function UDK_Timer.StartForwardTimer(label, duration, unit, allowOverride)
+function UDK_Timer.StartForwardTimer(label, duration, unit, allowOverride, callback)
     local timeDelta_ms = 100 -- 时间间隔100ms
     local timerId
     label = label or ("forward_" .. nanoIDGenerate(8))
@@ -101,11 +104,27 @@ function UDK_Timer.StartForwardTimer(label, duration, unit, allowOverride)
         function()
             local meta = timer[label]
             meta.remaining_ms = math.max(meta.duration_ms, meta.remaining_ms + timeDelta_ms)
+            -- 如果开发者提供了回调函数，则调用它
+            if meta.callback then
+                -- 提供一个包含定时器详细信息的表作为参数
+                local timerInfo = {
+                    label = label,
+                    remaining_ms = meta.remaining_ms,
+                    duration_ms = meta.duration_ms,
+                    active = meta.active
+                }
+
+                -- 使用pcall安全调用开发者的回调函数，防止出错影响定时器系统
+                local success, errorMsg = pcall(meta.callback, timerInfo)
+                if not success then
+                    print(string.format("[UDK:Timer] Error in callback for timer [%s]: %s", label, errorMsg))
+                end
+            end
             --print(string.format("%.1f", meta.remaining_ms / 1000))
         end
     )
 
-    createTimerMeta(label, timerId, duration_ms, allowOverride)
+    createTimerMeta(label, timerId, duration_ms, allowOverride, callback)
     return label
 end
 
@@ -117,8 +136,9 @@ end
 ---@param isLoop boolean? 是否循环(默认false)
 ---@param unit string? 时间单位('s'或'ms')
 ---@param allowOverride boolean? 是否允许覆盖现有标签
+---@param callback function? 自定义回调代码，定时器触发时调用
 ---@return string label 定义的标签
-function UDK_Timer.StartBackwardTimer(label, duration, isLoop, unit, allowOverride)
+function UDK_Timer.StartBackwardTimer(label, duration, isLoop, unit, allowOverride, callback)
     local timeDelta_ms = 100                                   -- 每次减少的时间(毫秒)
     local timerUUID = label or ("backward_" .. nanoIDGenerate()) -- 生成一个唯一的定时器ID
     local timerId
@@ -147,6 +167,23 @@ function UDK_Timer.StartBackwardTimer(label, duration, isLoop, unit, allowOverri
             -- 格式化显示为1位小数
             -- print(string.format("%.1f", seconds))
 
+            -- 如果开发者提供了回调函数，则调用它
+            if meta.callback then
+                -- 提供一个包含定时器详细信息的表作为参数
+                local timerInfo = {
+                    label = label,
+                    remaining_ms = meta.remaining_ms,
+                    duration_ms = meta.duration_ms,
+                    active = meta.active
+                }
+
+                -- 使用pcall安全调用开发者的回调函数，防止出错影响定时器系统
+                local success, errorMsg = pcall(meta.callback, timerInfo)
+                if not success then
+                    print(string.format("[UDK:Timer] Error in callback for timer [%s]: %s", label, errorMsg))
+                end
+            end
+
             if meta.remaining_ms <= 0 then
                 if isLoop == false then
                     TimerManager:PauseTimer(timerId)
@@ -160,7 +197,7 @@ function UDK_Timer.StartBackwardTimer(label, duration, isLoop, unit, allowOverri
         end
     )
 
-    createTimerMeta(timerUUID, timerId, duration_ms, allowOverride)
+    createTimerMeta(timerUUID, timerId, duration_ms, allowOverride, callback)
     return timerUUID
 end
 
@@ -180,7 +217,7 @@ function UDK_Timer.GetTimerTime(timerID, unit)
             return timer[timerID].remaining_ms
         end
     end
-    return nil, "Timer not found"
+    return nil, "[UDK:Timer] Timer not found"
 end
 
 ---|📘- 暂停计时器
