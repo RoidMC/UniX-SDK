@@ -65,8 +65,8 @@ end
 local function AutoButtonHandler(buttonData, event, actMap)
     local ActMapping = actMap -- 加载配置
 
-    if not ActMapping then
-        --local logOutput = "[UDK:UI] ButtonEvent按钮自动处理失败，请检查按钮ID配置"
+    if not ActMapping and type(ActMapping) ~= "table" then
+        --local logOutput = "[UDK:UI] ButtonEvent按钮自动处理失败，请检查按钮ID配置是否正确"
         --ULogPrint("ERROR", logOutput)
         return
     end
