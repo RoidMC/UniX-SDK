@@ -2,6 +2,13 @@
 
 # UniX SDK
 
+![GitHub License](https://img.shields.io/github/license/RoidMC/UniX-SDK?style=flat-square)
+![GitHub Stars](https://img.shields.io/github/stars/RoidMC/UniX-SDK?style=flat-square)
+![GitHub Forks](https://img.shields.io/github/forks/RoidMC/UniX-SDK?style=flat-square)
+![GitHub Issues](https://img.shields.io/github/issues/RoidMC/UniX-SDK?style=flat-square)
+![GitHub Last Updated](https://img.shields.io/github/last-commit/RoidMC/UniX-SDK?style=flat-square)
+![SDK Version](https://img.shields.io/badge/version-0.0.1-blue?style=flat-square)
+
 - 🪄 **为元梦之星Lua2.0开发**
 - 📚 **包含常用功能封装**
 - 📦 **模块化设计**
@@ -19,20 +26,24 @@ UniX SDK采用双重许可：
 
 2. **归属要求**
    - 使用UniX SDK的应用必须显示"Powered by UniX SDK"
-   - 具体要求请见[ATTRIBUTION.md](./docs/ATTRIBUTION.md)文件
+   - 具体要求请见[ATTRIBUTION](./docs/ATTRIBUTION.md)文件
 
 ## 🚀 快速开始
 
 ### 在Server目录中添加Unix SDK
 
-> 下载SDK后在根目录下创建`Public`并在内创建`sdk`文件夹，将SDK文件放入其中
+> 下载SDK后在根目录下创建`Public`并在内创建`UniX-SDK`文件夹，将SDK文件放入其中
 
-> 您也可以在[main.lua](./unix-sdk/main.lua)中修改SDK路径，同时请注意修改`Require`的路径
+> 您也可以根据项目需求自行选择`SDK`路径，但您需要手动修改[main.lua](./unix-sdk/main.lua)内的引用路径
+
+> 我们推荐您使用`_G`在`GameEntry`下全局注册，这样只需要在`GameEntry`下引用一次即可
 
 ```lua
 -- GameEntry.lua
--- 加载SDK全部功能（根据项目需求修改Require路径和main中的对应绝对路径）
+-- 加载SDK全部功能
 local UDK = require("Public.UniX-SDK.main")
+-- 在_G全局变量中注册UDK（SDK推荐注册方法）
+_G.UDK = UDK
 
 local Enum_Test_Array = {
     Test="Hello World!",
@@ -83,11 +94,11 @@ UDK.UI.SetNativeInterfaceVisible(
 
 ## 🤝 贡献
 
-欢迎贡献代码、报告问题或提出改进建议。请查阅[CONTRIBUTING.md](./docs/CONTRIBUTING.md)了解如何参与项目开发。
+欢迎贡献代码、报告问题或提出改进建议。请查阅[CONTRIBUTING](./docs/CONTRIBUTING.md)了解如何参与项目开发。
 
 ## 📄 归属声明
 
-使用UniX SDK的应用程序必须在用户界面中显示"Powered by UniX SDK"，详细要求请参阅[ATTRIBUTION.md](./docs/ATTRIBUTION.md)。
+使用UniX SDK的应用程序必须在用户界面中显示"Powered by UniX SDK"，详细要求请参阅[ATTRIBUTION](./docs/ATTRIBUTION.md)。
 
 > [!IMPORTANT]
 > 在使用SDK时请勿占用SDK保留的NetMsg ID，范围200000-250000，占用导致的报错不在我们的处理范围内

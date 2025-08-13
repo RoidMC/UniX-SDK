@@ -22,23 +22,23 @@
 
 local UDK = {
     -- UDK UI
-    UI = require("ui.udk_ui"),
-    --Animation = require("ui.udk_animation"),
+    UI = require("Public.UniX-SDK.ui.udk_ui"),
+    --Animation = require("Public.UniX-SDK.ui.udk_animation"),
     -- UDK Utils
-    Math = require("utils.udk_math"),
-    Array = require("utils.udk_array"),
-    Player = require("utils.udk_player"),
-    Storage = require("utils.udk_storage"),
-    Property = require("utils.udk_property"),
-    Composer = require("utils.udk_composer"),
-    --Logger = require("utils.udk_logger"),
-    TomlUtils = require("utils.udk_toml"),
-    Event = require("utils.udk_event"),
-    Timer = require("utils.udk_timer"),
-    I18N = require("utils.udk_i18n"),
-    Sound = require("sound.udk_sound"),
+    Math = require("Public.UniX-SDK.utils.udk_math"),
+    Array = require("Public.UniX-SDK.utils.udk_array"),
+    Player = require("Public.UniX-SDK.utils.udk_player"),
+    Storage = require("Public.UniX-SDK.utils.udk_storage"),
+    Property = require("Public.UniX-SDK.utils.udk_property"),
+    Composer = require("Public.UniX-SDK.utils.udk_composer"),
+    --Logger = require("Public.UniX-SDK.utils.udk_logger"),
+    TomlUtils = require("Public.UniX-SDK.utils.udk_toml"),
+    Event = require("Public.UniX-SDK.utils.udk_event"),
+    Timer = require("Public.UniX-SDK.utils.udk_timer"),
+    I18N = require("Public.UniX-SDK.utils.udk_i18n"),
+    Sound = require("Public.UniX-SDK.sound.udk_sound"),
     -- UDK Options Extension
-    Extension = require("extends.udk_extends")
+    Extension = require("Public.UniX-SDK.extends.udk_extends")
 }
 
 return UDK

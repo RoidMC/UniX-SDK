@@ -1,4 +1,4 @@
-![Header](https://capsule-render.vercel.app/api?type=Waving&color=timeGradient&height=200&animation=fadeIn&section=header&text=UniX%20Dev%20Kit&fontSize=65)
+![Header](https://capsule-render.vercel.app/api?type=Waving&color=timeGradient&height=200&animation=fadeIn&section=header&text=UniX%20SDK&fontSize=65)
 
 # UniX SDK Script Utils
 
