@@ -23,7 +23,7 @@
 local UDK = {
     -- UDK UI
     UI = require("Public.UniX-SDK.ui.udk_ui"),
-    --Animation = require("Public.UniX-SDK.ui.udk_animation"),
+    Animation = require("Public.UniX-SDK.ui.udk_animation"),
     -- UDK Utils
     Math = require("Public.UniX-SDK.utils.udk_math"),
     Array = require("Public.UniX-SDK.utils.udk_array"),
