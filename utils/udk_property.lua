@@ -1,6 +1,6 @@
 -- ==================================================
 -- * UniX SDK - Property Module (C/S Sync)
--- * Version: 0.0.1
+-- * Version: 0.0.2
 -- *
 -- * License: MPL-2.0
 -- * See LICENSE file for details.
@@ -72,8 +72,15 @@ UDK_Property.SyncConf = {
         ForceSync = "ForceSync"
     },
     Status = {
-        StandaloneDebug = false, --编辑器和单机环境Debug测试使用
-        DebugPrint      = false   --调试打印
+        StandaloneDebug = true,    --编辑器和单机环境Debug测试使用
+        DebugPrint      = false,    --调试打印
+        UnitTestMode    = false,   --单元测试模式（TODO）
+        ProtocolVersion = "1.0.0", --协议版本
+    },
+    EnvType = {
+        Standalone = { ID = 0, Name = "Standalone" },
+        Server = { ID = 1, Name = "Server" },
+        Client = { ID = 2, Name = "Client" }
     }
 }
 
@@ -263,23 +270,24 @@ local function getTimestamp()
     return math.floor(timeStamp * 1000)
 end
 
--- 获取当前环境（返回值仅用于IF判断）
-local function getSystemEnv(type)
-    if type == "server" then
-        if UDK_Property.SyncConf.Status.StandaloneDebug then
-            return System:IsServer()
-        else
-            return System:IsServer() and not System:IsStandalone()
-        end
-    elseif type == "client" then
-        if UDK_Property.SyncConf.Status.StandaloneDebug then
-            return System:IsClient()
-        else
-            return System:IsClient() and not System:IsStandalone()
-        end
-    else
-        return nil
-    end
+---返回当前环境状态
+---@return table {
+---     envID: number,       -- 环境ID（Server=1, Client=2, Standalone=0）
+---     envName: string,     -- 环境名称（"Server", "Client", "Standalone"）
+---     isDebug: boolean,    -- 是否启用调试模式（StandaloneDebug）
+---     isStandalone: boolean -- 是否为单机模式
+---}
+local function envCheck()
+    local isStandalone = System:IsStandalone()
+    local envType = isStandalone and UDK_Property.SyncConf.EnvType.Standalone or
+        (System:IsServer() and UDK_Property.SyncConf.EnvType.Server or UDK_Property.SyncConf.EnvType.Client)
+
+    return {
+        envID = envType.ID,
+        envName = envType.Name,
+        isDebug = UDK_Property.SyncConf.Status.StandaloneDebug,
+        isStandalone = isStandalone
+    }
 end
 
 ---|📘- 生成NanoID
@@ -307,17 +315,56 @@ local function networkValidRequest(requestTime)
     end
 end
 
---  网络同步事件处理
+-- 网络协议版本检查
+local function networkProtocolVersionCheck(protocolVersion)
+    -- 检查版本号是否存在
+    if not protocolVersion then
+        print(string.format("[UDK:Property] 协议版本检查失败: 缺少协议版本号"))
+        return false
+    end
+
+    -- 获取期望的协议版本
+    local expectedVersion = UDK_Property.SyncConf.Status.ProtocolVersion
+
+    -- 比较版本号
+    if protocolVersion ~= expectedVersion then
+        print(string.format("[UDK:Property] 协议版本不匹配: 期望 %s, 实际 %s",
+            expectedVersion, protocolVersion))
+        return false
+    end
+
+    -- 版本匹配
+    if UDK_Property.SyncConf.Status.DebugPrint then
+        print(string.format("[UDK:Property] 协议版本验证通过: %s", protocolVersion))
+    end
+
+    return true
+end
+
+-- 网络同步事件处理（添加协议版本检查）
 local function networkSyncEventHandle(reqMsg)
-    if reqMsg ~= nil then
-        local event = reqMsg.event
-        local syncReq = reqMsg.dataSyncReq
+    if reqMsg == nil then
+        return
+    end
+
+    local event = reqMsg.event
+    local syncReq = reqMsg.dataSyncReq
+
+    -- 协议版本检查
+    if not networkProtocolVersionCheck(event.protocolVersion) then
+        print(string.format("[UDK:Property] 消息处理中止: 协议版本检查失败"))
+        return
+    end
+
+    if syncReq ~= nil then
         local crud = UDK_Property.SyncConf.CRUD
         -- 创建/更新
         if syncReq.reqType == crud.Create or syncReq.reqType == crud.Update then
-            --Log:PrintTable(reqMsg)
             UDK_Property.SetProperty(syncReq.object, syncReq.type, syncReq.name, syncReq.data, true)
-            print(string.format("已接收并应用服务器权威数据，共 %d 个属性，名称 %s", dataStore.stats.totalCount, tostring(syncReq.name)))
+            if UDK_Property.SyncConf.Status.DebugPrint then
+                print(string.format("已接收并应用%s权威数据，共 %d 个属性，名称 %s",
+                    event.envName or "Unknown", dataStore.stats.totalCount, tostring(syncReq.name)))
+            end
         end
         -- 常规删除
         if syncReq.reqType == crud.Delete then
@@ -333,10 +380,13 @@ local function networkSyncEventHandle(reqMsg)
         end
         -- 强制更新
         if syncReq.reqType == crud.ForceSync then
-            if syncReq.data and syncReq.data.data then
+            Log:PrintTable(reqMsg)
+            if syncReq.data ~= nil and syncReq.object == nil and syncReq.type == nil and syncReq.name == nil then
                 -- 完全替换本地数据存储
                 dataStore = syncReq.data
-                print(string.format("已接收并应用服务器权威数据，共 %d 个属性", dataStore.stats.totalCount))
+                if UDK_Property.SyncConf.Status.DebugPrint then
+                    print(string.format("已接收并应用服务器权威数据，共 %d 个属性", dataStore.stats.totalCount))
+                end
             elseif syncReq.object and syncReq.type and syncReq.name then
                 -- 单个属性强制更新
                 UDK_Property.SetProperty(syncReq.object, syncReq.type, syncReq.name, syncReq.data, true)
@@ -346,88 +396,156 @@ local function networkSyncEventHandle(reqMsg)
 end
 
 -- 创建通用消息构建函数
-local function buildSyncMessage(MsgId, eventType, reqType, object, type, name, data)
-    return {
+local function buildSyncMessage(MsgStructure, DataStructure)
+    local msg = {
         event = {
-            id = MsgId,
-            type = eventType,
-            reqID = nanoIDGenerate(),
-            reqTimestamp = getTimestamp(),
-            isStandalone = System:IsStandalone(),
-            isServer = System:IsServer(),
-            isClient = System:IsClient()
+            id = MsgStructure.MsgID,
+            type = MsgStructure.EventType,
+            reqID = MsgStructure.RequestID or 0,
+            reqTimestamp = MsgStructure.RequestTimestamp or 0,
+            envType = MsgStructure.EnvType or 0,
+            envName = MsgStructure.EnvName or "Unknown",
+            protocolVersion = MsgStructure.ProtocolVersion or 0,
         },
         dataSyncReq = {
-            reqType = reqType,
-            object = object,
-            type = type,
-            name = name,
-            data = data
+            reqType = MsgStructure.ReqType,
+            object = DataStructure.Object,
+            type = DataStructure.Type,
+            name = DataStructure.Name,
+            data = DataStructure.Data
         }
     }
+
+    msg.event.checkSum = "TODO"
+
+    return msg
 end
 
--- 网络同步数据
+---网络同步数据
+---@param reqType string 请求类型（CRUD操作类型）
+---@param object string|number|table 目标对象
+---@param type string 属性类型
+---@param name string 属性名称
+---@param data? any? 要同步的数据
+---@return boolean isSuccess 是否成功
 local function networkSyncSend(reqType, object, type, name, data)
-    local isServer = getSystemEnv("server")
-    local isClient = getSystemEnv("client")
-
-    if isServer then
-        local Msg = buildSyncMessage(
-            UDK_Property.NetMsg.ServerSync,
-            UDK_Property.SyncConf.Type.ServerSync,
-            reqType, object, type, name, data
-        )
-        System:SendToAllClients(Msg.event.id, Msg)
+    -- 参数验证
+    if not reqType then
+        print("[UDK:Property] NetworkSyncSend: 缺少请求类型参数")
+        return false
     end
 
-    if isClient then
-        local Msg = buildSyncMessage(
-            UDK_Property.NetMsg.ClientSync,
-            UDK_Property.SyncConf.Type.ClientSync,
-            reqType, object, type, name, data
-        )
-        System:SendToServer(Msg.event.id, Msg)
+    -- 获取环境信息
+    local envInfo = envCheck()
+    local envType = UDK_Property.SyncConf.EnvType
+
+    -- 构建数据结构
+    local dataStructure = {
+        Data = data,
+        Object = object,
+        Type = type,
+        Name = name
+    }
+
+    -- 服务器环境
+    if envInfo.envID == envType.Server.ID then
+        local msgStructure = {
+            MsgID = UDK_Property.NetMsg.ServerSync,
+            EventType = UDK_Property.SyncConf.Type.ServerSync,
+            RequestID = nanoIDGenerate(),
+            RequestTimestamp = getTimestamp(),
+            EnvType = envInfo.envID,
+            EnvName = envInfo.envName,
+            ReqType = reqType,
+            ProtocolVersion = UDK_Property.SyncConf.Status.ProtocolVersion
+        }
+
+        local msg = buildSyncMessage(msgStructure, dataStructure)
+        System:SendToAllClients(msgStructure.MsgID, msg)
+        return true
     end
+
+    -- 客户端环境
+    if envInfo.envID == envType.Client.ID then
+        local msgStructure = {
+            MsgID = UDK_Property.NetMsg.ClientSync,
+            EventType = UDK_Property.SyncConf.Type.ClientSync,
+            RequestID = nanoIDGenerate(),
+            RequestTimestamp = getTimestamp(),
+            EnvType = envInfo.envID,
+            EnvName = envInfo.envName,
+            ReqType = reqType,
+            ProtocolVersion = UDK_Property.SyncConf.Status.ProtocolVersion
+        }
+
+        local msg = buildSyncMessage(msgStructure, dataStructure)
+        System:SendToServer(msgStructure.MsgID, msg)
+        return true
+    end
+
+    -- 编辑器/单机环境
+    if envInfo.envID == envType.Standalone.ID then
+        -- 单机环境
+        --print("[UDK:Property] NetworkSyncSend: 单机环境无法发送网络同步数据")
+    end
+
+    -- 如果不是有效环境，返回失败
+    return false
 end
+
 
 -- 发送服务器权威数据（适用于断线重连等极端情况导致Client数据不同步的情况）
 -- 该接口很危险，请谨慎使用，应该在确定客户端和服务器存在数据不同步的情况下使用
 -- 该接口仅允许服务器调用，客户端调用无效
 local function networkSyncAuthorityData(playerID, object, type, name, data)
-    local isServer = getSystemEnv("server")
-    local isClient = getSystemEnv("client")
-    if isServer then
-        local MsgId = UDK_Property.NetMsg.ServerAuthoritySync
-        local EventType = UDK_Property.SyncConf.Type.ServerAuthoritySync
-        local reqType = UDK_Property.SyncConf.CRUD.ForceSync
-        local Msg = {
-            event = {
-                id = MsgId,
-                type = EventType,
-                reqID = nanoIDGenerate(),
-                reqTimestamp = getTimestamp(),
-                isStandalone = System:IsStandalone(),
-                isServer = System:IsServer(),
-                isClient = System:IsClient()
-            },
-            dataSyncReq = {
-                reqType = reqType,
-                data = dataStore
-            }
+    -- 获取环境信息
+    local envInfo = envCheck()
+    local envType = UDK_Property.SyncConf.EnvType
+    local singleDataSync, dataStructure
+
+    if object ~= nil and type ~= nil and name ~= nil and data ~= nil then
+        singleDataSync = true
+        print("[UDK:Property] NetworkAuthoritySync: 正在发送服务器权威数据")
+    end
+
+    if singleDataSync and envInfo.envID ~= envType.Client.ID then
+        dataStructure = {
+            Data = data,
+            Object = object,
+            Type = type,
+            Name = name
         }
+    elseif envInfo.envID ~= envType.Client.ID then
+        dataStructure = {
+            Data = dataStore,
+            Type = type,
+        }
+    end
+
+    if envInfo.envID == envType.Server.ID or envInfo.isDebug then
+        local msgStructure = {
+            MsgID = UDK_Property.NetMsg.ServerAuthoritySync,
+            EventType = UDK_Property.SyncConf.Type.ServerAuthoritySync,
+            RequestID = nanoIDGenerate(),
+            RequestTimestamp = getTimestamp(),
+            EnvType = envInfo.envID,
+            EnvName = envInfo.envName,
+            ReqType = UDK_Property.SyncConf.CRUD.ForceSync,
+            ProtocolVersion = UDK_Property.SyncConf.Status.ProtocolVersion
+        }
+        local msg = buildSyncMessage(msgStructure, dataStructure)
         if playerID ~= nil then
-            System:SendToClient(playerID, MsgId, Msg)
-            print(string.format("向玩家%s发送了同步请求: %s (%s, %s)", playerID, Msg.event.reqID, Msg.event.reqTimestamp,
-                Msg.dataSyncReq.reqType))
+            System:SendToClient(playerID, msgStructure.MsgID, msg)
+            print(string.format("向玩家%s发送了同步请求: %s (%s, %s)", playerID, msgStructure.RequestID,
+                msgStructure.RequestTimestamp, msgStructure.ReqType))
         else
-            System:SendToAllClients(MsgId, Msg)
-            print(string.format("向所有客户端发送了同步请求: %s (%s, %s)", Msg.event.reqID, Msg.event.reqTimestamp,
-                Msg.dataSyncReq.reqType))
+            System:SendToAllClients(msgStructure.MsgID, msg)
+            print(string.format("向所有客户端发送了同步请求: %s (%s, %s)", msgStructure.RequestID,
+                msgStructure.RequestTimestamp, msgStructure.ReqType))
         end
     end
 
-    if isClient then
+    if envInfo.envID == envType.Client.ID then
         print("[UDK:Property] NetworkAuthoritySync: 客户端无法调用该接口，请更换服务器调用")
     end
 end
@@ -459,40 +577,36 @@ local function networkQueryAuthorityData()
     end
 end
 
-local function clientDataCache()
-    -- body
-end
-
-local function createMessageHandler(source)
+local function createMessageHandler()
     return function(msgId, msg, playerId)
         -- 检查请求有效性
         local reqValid, errorMsg = networkValidRequest(msg.event.reqTimestamp)
-        local text
+        local event, syncReq, text = msg.event, msg.syncReq, ""
 
         -- 处理单机/编辑器模式
         if msg.event.isServer then
-            text = "Client"
             if UDK_Property.SyncConf.Status.DebugPrint then
-                print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)", text, source, msg.event.reqID, msg.event
-                    .reqTimestamp,
-                    msg.dataSyncReq.reqType))
+                text = "Client"
+                print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)", text, event.envName, event.reqID,
+                    event.reqTimestamp,
+                    syncReq.reqType))
             end
         end
         if msg.event.isClient then
             text = "Server"
             if UDK_Property.SyncConf.Status.DebugPrint then
-                print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)", text, source, msg.event.reqID, msg.event
-                    .reqTimestamp,
-                    msg.dataSyncReq.reqType))
-                print(msg.dataSyncReq.object, msg.dataSyncReq.type, msg.dataSyncReq.name, tostring(msg.dataSyncReq.data))
+                print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)", text, event.envName, event.reqID,
+                    event.reqTimestamp,
+                    syncReq.reqType))
+                print(syncReq.object, syncReq.type, syncReq.name, tostring(syncReq.data))
             end
         end
         if msg.event.isStandalone and UDK_Property.SyncConf.Status.StandaloneDebug then
             text = "Standalone Debug"
             if UDK_Property.SyncConf.Status.DebugPrint then
-                print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)", text, source, msg.event.reqID, msg.event
-                    .reqTimestamp,
-                    msg.dataSyncReq.reqType))
+                print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)", text, event.envName, event.reqID,
+                    event.reqTimestamp,
+                    syncReq.reqType))
             end
         end
 
@@ -500,21 +614,21 @@ local function createMessageHandler(source)
         if reqValid then
             networkSyncEventHandle(msg)
         else
-            print(string.format("收到来自%s的请求，但请求已过期: %s (%s, %s)", text, msg.event.reqID, msg.event.reqTimestamp,
-                msg.dataSyncReq.reqType))
+            print(string.format("收到来自%s的请求，但请求已过期: %s (%s, %s)", text, event.reqID, event.reqTimestamp,
+                syncReq.reqType))
         end
     end
 end
 
 local function networkBindNotifyInit()
     if System:IsServer() then
-        System:BindNotify(UDK_Property.NetMsg.ClientSync, createMessageHandler("Client"))
-        System:BindNotify(UDK_Property.NetMsg.ClientQueryAuthorityData, createMessageHandler("Client"))
+        System:BindNotify(UDK_Property.NetMsg.ClientSync, createMessageHandler())
+        System:BindNotify(UDK_Property.NetMsg.ClientQueryAuthorityData, createMessageHandler())
     end
 
     if System:IsClient() then
-        System:BindNotify(UDK_Property.NetMsg.ServerSync, createMessageHandler("Server"))
-        System:BindNotify(UDK_Property.NetMsg.ServerAuthoritySync, createMessageHandler("Server"))
+        System:BindNotify(UDK_Property.NetMsg.ServerSync, createMessageHandler())
+        System:BindNotify(UDK_Property.NetMsg.ServerAuthoritySync, createMessageHandler())
     end
 end
 
@@ -1126,9 +1240,9 @@ end
 ---@param object string? 对象名称（可选，用于同步单个数据）
 ---@param propertyType string? 属性类型（可选，用于同步单个数据）
 ---@param propertyName string? 属性名称（可选，用于同步单个数据）
-function UDK_Property.SyncAuthorityData(playerID, object, propertyType, propertyName)
-    networkSyncAuthorityData(playerID, object, propertyType, propertyName)
-    print("已同步服务器权威数据")
+---@param data any? 同步数据（可选，用于同步单个数据）
+function UDK_Property.SyncAuthorityData(playerID, object, propertyType, propertyName, data)
+    networkSyncAuthorityData(playerID, object, propertyType, propertyName, data)
 end
 
 return UDK_Property
