@@ -73,7 +73,7 @@ UDK_Property.SyncConf = {
     },
     Status = {
         StandaloneDebug = true,    --编辑器和单机环境Debug测试使用
-        DebugPrint      = false,    --调试打印
+        DebugPrint      = false,   --调试打印
         UnitTestMode    = false,   --单元测试模式（TODO）
         ProtocolVersion = "1.0.0", --协议版本
     },
@@ -305,6 +305,97 @@ local function nanoIDGenerate(size)
     return id
 end
 
+-- CRC32 多项式（IEEE 802.3 标准，反射多项式）
+local POLYNOMIAL = 0xEDB88320
+
+-- 预生成 CRC32 查找表（256 个元素）
+local crc_table = {}
+for i = 0, 255 do
+    local crc = i
+    for j = 0, 7 do
+        if (crc & 1) ~= 0 then
+            crc = (crc >> 1) ~ POLYNOMIAL -- 异或操作
+        else
+            crc = crc >> 1
+        end
+    end
+    crc_table[i] = crc
+end
+
+-- 计算数据的 CRC32 校验值（支持字符串或字节 table 输入）
+-- @param data 输入数据（字符串 或 存储字节值的 table，如 {0x48, 0x65, 0x6c, 0x6c, 0x6f}）
+-- @return CRC32 校验值（32 位无符号整数）
+local function crc32(data)
+    -- 如果是 table 类型，先转换为字符串
+    if type(data) == "table" then
+        local function tableToString(tbl, indent)
+            indent = indent or 0
+            local spaces = string.rep(" ", indent)
+            local result = "{\n"
+
+            for k, v in pairs(tbl) do
+                local keyStr = tostring(k)
+                local valueStr
+
+                if type(v) == "table" then
+                    valueStr = tableToString(v, indent + 2)
+                else
+                    valueStr = tostring(v)
+                end
+
+                result = result .. spaces .. "  " .. keyStr .. " = " .. valueStr .. ",\n"
+            end
+
+            result = result .. spaces .. "}"
+            return result
+        end
+
+        data = tableToString(data)
+    end
+
+    local crc = 0xFFFFFFFF -- 初始值
+
+    -- 判断输入类型：字符串 或 table
+    local is_string = type(data) == "string"
+    local len = is_string and #data or #data -- table 需保证是连续数值数组
+
+    -- 遍历每个字节
+    for i = 1, len do
+        -- 获取当前字节的数值（字符串用 byte()，table 直接取值）
+        local byte
+        if is_string then
+            byte = data:byte(i) -- 字符串直接取字节（0-255）
+        else
+            byte = data[i]
+            -- 检查 table 元素是否为有效字节（0-255）
+            if type(byte) ~= "number" or byte < 0 or byte > 255 then
+                error(string.format("table 元素第 %d 位无效，需为 0-255 的数值", i))
+            end
+            -- 确保数值是整数（Lua 数组可能存浮点数，如 65.0 视为 65）
+            byte = math.floor(byte)
+        end
+
+        -- 计算索引并更新 CRC
+        local index = (crc ~ byte) & 0xFF
+        crc = (crc >> 8) ~ crc_table[index]
+    end
+
+    return crc ~ 0xFFFFFFFF -- 最终反射
+end
+
+-- 创建用于校验的标准化数据结构
+local function createChecksumData(reqMsg)
+    -- 创建一个标准化的数据结构用于校验
+    local checksumData = {
+        reqInfo = {
+            reqID = reqMsg.event.reqID,
+            reqTimestamp = reqMsg.event.reqTimestamp,
+        },
+        checkData = reqMsg.dataSyncReq,
+    }
+    return checksumData
+end
+
 --  网络请求有效期
 local function networkValidRequest(requestTime)
     local currentTime = getTimestamp()
@@ -347,6 +438,23 @@ local function networkSyncEventHandle(reqMsg)
         return
     end
 
+    -- 检查是否存在 checkSum 字段
+    if reqMsg.event.checkSum == nil then
+        print("[UDK:Property] 错误: 接收到的消息缺少 checkSum 字段")
+        return
+    end
+
+    -- 使用标准化的数据结构进行校验
+    local receivedChecksum = reqMsg.event.checkSum
+    local checksumData = createChecksumData(reqMsg)
+    local calculatedChecksum = crc32(checksumData)
+
+    if receivedChecksum ~= calculatedChecksum then
+        print(string.format("[UDK:Property] CRC32校验失败: 期望 %d, 实际 %d",
+            receivedChecksum, calculatedChecksum))
+        return
+    end
+
     local event = reqMsg.event
     local syncReq = reqMsg.dataSyncReq
 
@@ -380,7 +488,6 @@ local function networkSyncEventHandle(reqMsg)
         end
         -- 强制更新
         if syncReq.reqType == crud.ForceSync then
-            Log:PrintTable(reqMsg)
             if syncReq.data ~= nil and syncReq.object == nil and syncReq.type == nil and syncReq.name == nil then
                 -- 完全替换本地数据存储
                 dataStore = syncReq.data
@@ -416,7 +523,7 @@ local function buildSyncMessage(MsgStructure, DataStructure)
         }
     }
 
-    msg.event.checkSum = "TODO"
+    msg.event.checkSum = crc32(createChecksumData(msg))
 
     return msg
 end
