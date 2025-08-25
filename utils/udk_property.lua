@@ -396,6 +396,13 @@ local function createChecksumData(reqMsg)
     return checksumData
 end
 
+-- 创建格式化日志
+local function createFormatLog(msg)
+    local prefix = "[UDK:Property]"
+    local log = string.format("%s %s", prefix, msg)
+    return log
+end
+
 --  网络请求有效期
 local function networkValidRequest(requestTime)
     local currentTime = getTimestamp()
@@ -440,7 +447,7 @@ local function networkSyncEventHandle(reqMsg)
 
     -- 检查是否存在 checkSum 字段
     if reqMsg.event.checkSum == nil then
-        print("[UDK:Property] 错误: 接收到的消息缺少 checkSum 字段")
+        print(createFormatLog("NetSyncHandle: 接收到的消息缺少checkSum字段，请求无效"))
         return
     end
 
@@ -450,8 +457,7 @@ local function networkSyncEventHandle(reqMsg)
     local calculatedChecksum = crc32(checksumData)
 
     if receivedChecksum ~= calculatedChecksum then
-        print(string.format("[UDK:Property] CRC32校验失败: 期望 %d, 实际 %d",
-            receivedChecksum, calculatedChecksum))
+        print(createFormatLog("NetSyncHandle: CRC32校验失败: 期望 " .. calculatedChecksum .. ", 实际 " .. receivedChecksum))
         return
     end
 
@@ -460,7 +466,7 @@ local function networkSyncEventHandle(reqMsg)
 
     -- 协议版本检查
     if not networkProtocolVersionCheck(event.protocolVersion) then
-        print(string.format("[UDK:Property] 消息处理中止: 协议版本检查失败"))
+        print(createFormatLog("NetSyncHandle: 消息处理中止: 协议版本检查失败"))
         return
     end
 
@@ -538,7 +544,7 @@ end
 local function networkSyncSend(reqType, object, type, name, data)
     -- 参数验证
     if not reqType then
-        print("[UDK:Property] NetworkSyncSend: 缺少请求类型参数")
+        print(createFormatLog("NetSyncSend: 缺少请求类型参数"))
         return false
     end
 
@@ -604,28 +610,27 @@ end
 -- 发送服务器权威数据（适用于断线重连等极端情况导致Client数据不同步的情况）
 -- 该接口很危险，请谨慎使用，应该在确定客户端和服务器存在数据不同步的情况下使用
 -- 该接口仅允许服务器调用，客户端调用无效
-local function networkSyncAuthorityData(playerID, object, type, name, data)
+local function networkSyncAuthorityData(playerID, object, propertyType, name, data)
     -- 获取环境信息
     local envInfo = envCheck()
     local envType = UDK_Property.SyncConf.EnvType
-    local singleDataSync, dataStructure
+    local singleDataSync, dataStructure, logContent
 
-    if object ~= nil and type ~= nil and name ~= nil and data ~= nil then
+    if object ~= nil and propertyType ~= nil and name ~= nil and data ~= nil then
         singleDataSync = true
-        print("[UDK:Property] NetworkAuthoritySync: 正在发送服务器权威数据")
     end
 
     if singleDataSync and envInfo.envID ~= envType.Client.ID then
         dataStructure = {
             Data = data,
             Object = object,
-            Type = type,
+            Type = propertyType,
             Name = name
         }
     elseif envInfo.envID ~= envType.Client.ID then
         dataStructure = {
             Data = dataStore,
-            Type = type,
+            Type = propertyType,
         }
     end
 
@@ -641,19 +646,21 @@ local function networkSyncAuthorityData(playerID, object, type, name, data)
             ProtocolVersion = UDK_Property.SyncConf.Status.ProtocolVersion
         }
         local msg = buildSyncMessage(msgStructure, dataStructure)
-        if playerID ~= nil then
+        if playerID ~= nil and type(playerID) == "number" then
             System:SendToClient(playerID, msgStructure.MsgID, msg)
-            print(string.format("向玩家%s发送了同步请求: %s (%s, %s)", playerID, msgStructure.RequestID,
-                msgStructure.RequestTimestamp, msgStructure.ReqType))
+            logContent = string.format("NetAuthoritySync: 向玩家%s发送了同步请求: %s (%s, %s)",
+                playerID, msgStructure.RequestID, msgStructure.RequestTimestamp, msgStructure.ReqType)
+            print(createFormatLog(logContent))
         else
             System:SendToAllClients(msgStructure.MsgID, msg)
-            print(string.format("向所有客户端发送了同步请求: %s (%s, %s)", msgStructure.RequestID,
-                msgStructure.RequestTimestamp, msgStructure.ReqType))
+            logContent = string.format("NetworkAuthoritySync: 向所有客户端发送了同步请求: %s (%s, %s)",
+                msgStructure.RequestID, msgStructure.RequestTimestamp, msgStructure.ReqType)
+            print(createFormatLog(logContent))
         end
     end
 
     if envInfo.envID == envType.Client.ID then
-        print("[UDK:Property] NetworkAuthoritySync: 客户端无法调用该接口，请更换服务器调用")
+        print(createFormatLog("NetAuthoritySync: 客户端无法调用该接口，请更换服务器调用"))
     end
 end
 
@@ -694,26 +701,23 @@ local function createMessageHandler()
         if msg.event.isServer then
             if UDK_Property.SyncConf.Status.DebugPrint then
                 text = "Client"
-                print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)", text, event.envName, event.reqID,
-                    event.reqTimestamp,
-                    syncReq.reqType))
+                print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)",
+                    text, event.envName, event.reqID, event.reqTimestamp, syncReq.reqType))
             end
         end
         if msg.event.isClient then
             text = "Server"
             if UDK_Property.SyncConf.Status.DebugPrint then
-                print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)", text, event.envName, event.reqID,
-                    event.reqTimestamp,
-                    syncReq.reqType))
+                print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)",
+                    text, event.envName, event.reqID, event.reqTimestamp, syncReq.reqType))
                 print(syncReq.object, syncReq.type, syncReq.name, tostring(syncReq.data))
             end
         end
         if msg.event.isStandalone and UDK_Property.SyncConf.Status.StandaloneDebug then
             text = "Standalone Debug"
             if UDK_Property.SyncConf.Status.DebugPrint then
-                print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)", text, event.envName, event.reqID,
-                    event.reqTimestamp,
-                    syncReq.reqType))
+                print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)",
+                    text, event.envName, event.reqID, event.reqTimestamp, syncReq.reqType))
             end
         end
 
@@ -721,8 +725,8 @@ local function createMessageHandler()
         if reqValid then
             networkSyncEventHandle(msg)
         else
-            print(string.format("收到来自%s的请求，但请求已过期: %s (%s, %s)", text, event.reqID, event.reqTimestamp,
-                syncReq.reqType))
+            print(string.format("收到来自%s的请求，但请求已过期: %s (%s, %s)",
+                text, event.reqID, event.reqTimestamp, syncReq.reqType))
         end
     end
 end
