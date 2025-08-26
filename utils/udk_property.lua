@@ -49,8 +49,8 @@ UDK_Property.TYPE = {
 UDK_Property.NetMsg = {
     ServerSync = 200000,
     ClientSync = 200001,
-    ServerSendAuthorityData = 200002,
-    ClientQueryAuthorityData = 200003,
+    ServerSendAuthorityData = 200002,  --TODO
+    ClientQueryAuthorityData = 200003, --TODO
     ServerAuthoritySync = 200010,
 }
 
@@ -59,7 +59,8 @@ UDK_Property.SyncConf = {
     Type = {
         ServerSync = "ServerSyncEvent",
         ClientSync = "ClientSyncEvent",
-        ClientQueryAuthorityData = "ClientQueryAuthorityData",
+        ClientQueryAuthorityData = "ClientQueryAuthorityData", --TODO
+        ServerSendAuthorityData = "ServerSendAuthorityData",   --TODO
         ServerAuthoritySync = "ServerAuthoritySync"
     },
     CRUD = {
@@ -691,7 +692,6 @@ local function networkSyncSend(reqType, object, type, name, data)
     return false
 end
 
-
 -- 发送服务器权威数据（适用于断线重连等极端情况导致Client数据不同步的情况）
 -- 该接口很危险，请谨慎使用，应该在确定客户端和服务器存在数据不同步的情况下使用
 -- 该接口仅允许服务器调用，客户端调用无效
@@ -749,31 +749,46 @@ local function networkSyncAuthorityData(playerID, object, propertyType, name, da
     end
 end
 
+-- TODO
 local function networkQueryAuthorityData()
-    local isClient = getSystemEnv("client")
-    if isClient then
-        local MsgId = UDK_Property.NetMsg.ClientQueryAuthorityData
-        local EventType = UDK_Property.SyncConf.Type.ClientQueryAuthorityData
-        local Msg = {
-            event = {
-                id = MsgId,
-                type = EventType,
-                reqID = nanoIDGenerate(),
-                reqTimestamp = getTimestamp(),
-                isStandalone = System:IsStandalone(),
-                isServer = System:IsServer(),
-                isClient = System:IsClient()
-            },
-            dataSyncReq = {
-                reqType = reqType,
-                object = object,
-                type = type,
-                name = name,
-                data = data
-            }
+    local envInfo = envCheck()
+    local envType = UDK_Property.SyncConf.EnvType
+
+    if envInfo.envID == envType.Client.ID then
+        local msgStructure = {
+            MsgID = UDK_Property.NetMsg.ClientQueryAuthorityData,
+            EventType = UDK_Property.SyncConf.Type.ClientQueryAuthorityData,
+            RequestID = nanoIDGenerate(),
+            RequestTimestamp = getTimestamp(),
+            EnvType = envInfo.envID,
+            EnvName = envInfo.envName,
+            ReqType = UDK_Property.SyncConf.CRUD.Get,
+            ProtocolVersion = UDK_Property.SyncConf.Status.ProtocolVersion
         }
-        System:SendToServer(MsgId, Msg)
+        local dataStructure = {
+            Data = "TODO",
+            Object = "TODO",
+            Type = "TODO",
+            Name = "TODO"
+        }
+        local msg = buildSyncMessage(msgStructure, dataStructure)
+        System:SendToServer(msgStructure.MsgID, msg)
+        return true
     end
+
+    return false
+end
+
+-- TODO
+local function networkSendQueryAuthorityData()
+    local envInfo = envCheck()
+    local envType = UDK_Property.SyncConf.EnvType
+
+    if envInfo.envID == envType.Server.ID then
+        return true
+    end
+
+    return false
 end
 
 local function createMessageHandler()
@@ -820,12 +835,13 @@ end
 local function networkBindNotifyInit()
     if System:IsServer() then
         System:BindNotify(UDK_Property.NetMsg.ClientSync, createMessageHandler())
-        System:BindNotify(UDK_Property.NetMsg.ClientQueryAuthorityData, createMessageHandler())
+        System:BindNotify(UDK_Property.NetMsg.ClientQueryAuthorityData, createMessageHandler()) --TODO
     end
 
     if System:IsClient() then
         System:BindNotify(UDK_Property.NetMsg.ServerSync, createMessageHandler())
         System:BindNotify(UDK_Property.NetMsg.ServerAuthoritySync, createMessageHandler())
+        System:BindNotify(UDK_Property.NetMsg.ServerSendAuthorityData, createMessageHandler()) --TODO
     end
 end
 
