@@ -74,7 +74,7 @@ UDK_Property.SyncConf = {
     Status = {
         StandaloneDebug = true,    --编辑器和单机环境Debug测试使用
         DebugPrint      = false,   --调试打印
-        UnitTestMode    = false,   --单元测试模式（TODO）
+        UnitTestMode    = false,   --单元测试模式
         ProtocolVersion = "1.0.0", --协议版本
     },
     EnvType = {
@@ -265,9 +265,13 @@ local dataStore = {
 local function getTimestamp()
     -- Lua2.0用不了os.time()
     -- 换成Lua2.0提供的接口生成需要的时间戳
-    local serverTime = MiscService:GetServerTimeToTime()
-    local timeStamp = MiscService:DateYMDHMSToTime(serverTime) --1702594800
-    return math.floor(timeStamp * 1000)
+    if UDK_Property.SyncConf.Status.UnitTestMode then
+        return os.time()
+    else
+        local serverTime = MiscService:GetServerTimeToTime()
+        local timeStamp = MiscService:DateYMDHMSToTime(serverTime) --1702594800
+        return math.floor(timeStamp * 1000)
+    end
 end
 
 ---返回当前环境状态
@@ -491,7 +495,7 @@ end
 local function networkProtocolVersionCheck(protocolVersion)
     -- 检查版本号是否存在
     if not protocolVersion then
-        print(createFormatLog("NetProtocolCheck: 协议版本检查失败: 缺少协议版本号"))
+        Log:PrintError(createFormatLog("NetProtocolCheck: 协议版本检查失败: 缺少协议版本号"))
         return false
     end
 
@@ -500,14 +504,14 @@ local function networkProtocolVersionCheck(protocolVersion)
 
     -- 比较版本号
     if protocolVersion ~= expectedVersion then
-        print(createFormatLog(string.format("NetProtocolCheck: 协议版本不匹配: 期望 %s, 实际 %s",
+        Log:PrintError(createFormatLog(string.format("NetProtocolCheck: 协议版本不匹配: 期望 %s, 实际 %s",
             expectedVersion, protocolVersion)))
         return false
     end
 
     -- 版本匹配
     if UDK_Property.SyncConf.Status.DebugPrint then
-        print(createFormatLog("NetProtocolCheck: 协议版本匹配: " .. protocolVersion))
+        Log:PrintLog(createFormatLog("NetProtocolCheck: 协议版本匹配: " .. protocolVersion))
     end
 
     return true
@@ -521,7 +525,7 @@ local function networkSyncEventHandle(reqMsg)
 
     -- 检查是否存在 checkSum 字段
     if reqMsg.event.checkSum == nil then
-        print(createFormatLog("NetSyncHandle: 接收到的消息缺少checkSum字段，请求无效"))
+        Log:PrintError(createFormatLog("NetSyncHandle: 接收到的消息缺少checkSum字段，请求无效"))
         return
     end
 
@@ -531,7 +535,8 @@ local function networkSyncEventHandle(reqMsg)
     local calculatedChecksum = crc32(checksumData)
 
     if receivedChecksum ~= calculatedChecksum then
-        print(createFormatLog("NetSyncHandle: CRC32校验失败: 期望 " .. calculatedChecksum .. ", 实际 " .. receivedChecksum))
+        Log:PrintError(createFormatLog("NetSyncHandle: CRC32校验失败: 期望 " ..
+            calculatedChecksum .. ", 实际 " .. receivedChecksum))
         return
     end
 
@@ -540,7 +545,7 @@ local function networkSyncEventHandle(reqMsg)
 
     -- 协议版本检查
     if not networkProtocolVersionCheck(event.protocolVersion) then
-        print(createFormatLog("NetSyncHandle: 消息处理中止: 协议版本检查失败"))
+        Log:PrintError(createFormatLog("NetSyncHandle: 消息处理中止: 协议版本检查失败"))
         return
     end
 
@@ -617,9 +622,14 @@ end
 ---@param data? any? 要同步的数据
 ---@return boolean isSuccess 是否成功
 local function networkSyncSend(reqType, object, type, name, data)
+    -- 检查是否处于单元测试模式
+    if UDK_Property.SyncConf.Status.UnitTestMode then
+        return false
+    end
+
     -- 参数验证
     if not reqType then
-        print(createFormatLog("NetSyncSend: 缺少请求类型参数"))
+        Log:PrintError(createFormatLog("NetSyncSend: 缺少请求类型参数"))
         return false
     end
 
@@ -722,20 +732,20 @@ local function networkSyncAuthorityData(playerID, object, propertyType, name, da
         }
         local msg = buildSyncMessage(msgStructure, dataStructure)
         if playerID ~= nil and type(playerID) == "number" then
-            System:SendToClient(playerID, msgStructure.MsgID, msg)
             logContent = string.format("NetAuthoritySync: 向玩家%s发送了同步请求: %s (%s, %s)",
                 playerID, msgStructure.RequestID, msgStructure.RequestTimestamp, msgStructure.ReqType)
-            print(createFormatLog(logContent))
+            Log:PrintLog(createFormatLog(logContent))
+            System:SendToClient(playerID, msgStructure.MsgID, msg)
         else
-            System:SendToAllClients(msgStructure.MsgID, msg)
             logContent = string.format("NetAuthoritySync: 向所有客户端发送了同步请求: %s (%s, %s)",
                 msgStructure.RequestID, msgStructure.RequestTimestamp, msgStructure.ReqType)
-            print(createFormatLog(logContent))
+            Log:PrintLog(createFormatLog(logContent))
+            System:SendToAllClients(msgStructure.MsgID, msg)
         end
     end
 
     if envInfo.envID == envType.Client.ID then
-        print(createFormatLog("NetAuthoritySync: 客户端无法调用该接口，请更换服务器调用"))
+        Log:PrintLog(createFormatLog("NetAuthoritySync: 客户端无法调用该接口，请更换服务器调用"))
     end
 end
 
@@ -777,22 +787,22 @@ local function createMessageHandler()
         if event.envType == envType.Server.ID then
             if UDK_Property.SyncConf.Status.DebugPrint then
                 text = "Client"
-                print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)",
+                Log:PrintLog(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)",
                     text, event.envName, event.reqID, event.reqTimestamp, syncReq.reqType))
             end
         end
         if event.envType == envType.Client.ID then
             text = "Server"
             if UDK_Property.SyncConf.Status.DebugPrint then
-                print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)",
+                Log:PrintLog(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)",
                     text, event.envName, event.reqID, event.reqTimestamp, syncReq.reqType))
-                print(syncReq.object, syncReq.type, syncReq.name, tostring(syncReq.data))
+                Log:PrintLog(syncReq.object, syncReq.type, syncReq.name, tostring(syncReq.data))
             end
         end
         if event.envType == envType.Standalone.ID and UDK_Property.SyncConf.Status.StandaloneDebug then
             text = "Standalone Debug"
             if UDK_Property.SyncConf.Status.DebugPrint then
-                print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)",
+                Log:PrintLog(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)",
                     text, event.envName, event.reqID, event.reqTimestamp, syncReq.reqType))
             end
         end
@@ -801,7 +811,7 @@ local function createMessageHandler()
         if reqValid then
             networkSyncEventHandle(msg)
         else
-            print(string.format("收到来自%s的请求，但请求已过期: %s (%s, %s)",
+            Log:PrintWarning(string.format("收到来自%s的请求，但请求已过期: %s (%s, %s)",
                 text, event.reqID, event.reqTimestamp, syncReq.reqType))
         end
     end
@@ -820,7 +830,9 @@ local function networkBindNotifyInit()
 end
 
 -- 调用游戏运行事件，进行注册网络消息通知
-System:RegisterEvent(Events.ON_BEGIN_PLAY, networkBindNotifyInit)
+if not UDK_Property.SyncConf.Status.UnitTestMode then
+    System:RegisterEvent(Events.ON_BEGIN_PLAY, networkBindNotifyInit)
+end
 
 -- 调试函数：打印验证结果
 local function debugValidateColor(value)
