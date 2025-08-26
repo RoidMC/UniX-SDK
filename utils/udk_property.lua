@@ -322,35 +322,109 @@ for i = 0, 255 do
     crc_table[i] = crc
 end
 
--- 计算数据的 CRC32 校验值（支持字符串或字节 table 输入）
--- @param data 输入数据（字符串 或 存储字节值的 table，如 {0x48, 0x65, 0x6c, 0x6c, 0x6f}）
--- @return CRC32 校验值（32 位无符号整数）
+---计算数据的 CRC32 校验值（支持字符串或字节 table 输入）
+---@param data string|table  输入数据（字符串 或 存储字节值的 table，如 {0x48, 0x65, 0x6c, 0x6c, 0x6f}）
+---@return string checkSum 校验值（32 位无符号整数）
 local function crc32(data)
-    -- 如果是 table 类型，先转换为字符串
+    -- 如果是 table 类型，转换为确定性的字节序列
     if type(data) == "table" then
-        local function tableToString(tbl, indent)
-            indent = indent or 0
-            local spaces = string.rep(" ", indent)
-            local result = "{\n"
+        -- 将表转换为字节序列的函数
+        local function tableToBytes(tbl)
+            local bytes = {}
 
-            for k, v in pairs(tbl) do
-                local keyStr = tostring(k)
-                local valueStr
-
-                if type(v) == "table" then
-                    valueStr = tableToString(v, indent + 2)
-                else
-                    valueStr = tostring(v)
-                end
-
-                result = result .. spaces .. "  " .. keyStr .. " = " .. valueStr .. ",\n"
+            -- 添加一个字节到序列
+            local function addByte(byte)
+                table.insert(bytes, byte & 0xFF)
             end
 
-            result = result .. spaces .. "}"
-            return result
+            -- 添加一个整数（4字节，小端序）
+            local function addInt(num)
+                num = math.floor(num)
+                for i = 0, 3 do
+                    addByte((num >> (i * 8)) & 0xFF)
+                end
+            end
+
+            -- 添加一个字符串
+            local function addString(str)
+                -- 先添加字符串长度
+                addInt(#str)
+                -- 再添加每个字符的字节
+                for i = 1, #str do
+                    addByte(str:byte(i))
+                end
+            end
+
+            -- 递归序列化表
+            local function serializeTable(t)
+                -- 标记这是一个表
+                addByte(1)
+
+                -- 收集并排序所有键
+                local keys = {}
+                for k in pairs(t) do
+                    table.insert(keys, k)
+                end
+
+                -- 对键进行排序（确保顺序一致性）
+                table.sort(keys, function(a, b)
+                    local typeA, typeB = type(a), type(b)
+                    if typeA == typeB then
+                        if typeA == "number" then
+                            return a < b
+                        else
+                            return tostring(a) < tostring(b)
+                        end
+                    else
+                        return typeA < typeB
+                    end
+                end)
+
+                -- 添加表的大小（键值对数量）
+                addInt(#keys)
+
+                -- 序列化每个键值对
+                for _, k in ipairs(keys) do
+                    local v = t[k]
+
+                    -- 序列化键
+                    if type(k) == "number" then
+                        addByte(2) -- 数字类型标记
+                        addInt(k)
+                    elseif type(k) == "string" then
+                        addByte(3) -- 字符串类型标记
+                        addString(k)
+                    else
+                        addByte(4) -- 其他类型标记
+                        addString(tostring(k))
+                    end
+
+                    -- 序列化值
+                    if type(v) == "nil" then
+                        addByte(0) -- nil类型标记
+                    elseif type(v) == "number" then
+                        addByte(2) -- 数字类型标记
+                        addInt(v)
+                    elseif type(v) == "string" then
+                        addByte(3) -- 字符串类型标记
+                        addString(v)
+                    elseif type(v) == "boolean" then
+                        addByte(5) -- 布尔类型标记
+                        addByte(v and 1 or 0)
+                    elseif type(v) == "table" then
+                        serializeTable(v) -- 递归序列化子表
+                    else
+                        addByte(4)        -- 其他类型标记
+                        addString(tostring(v))
+                    end
+                end
+            end
+
+            serializeTable(tbl)
+            return bytes
         end
 
-        data = tableToString(data)
+        data = tableToBytes(data)
     end
 
     local crc = 0xFFFFFFFF -- 初始值
@@ -417,7 +491,7 @@ end
 local function networkProtocolVersionCheck(protocolVersion)
     -- 检查版本号是否存在
     if not protocolVersion then
-        print(string.format("[UDK:Property] 协议版本检查失败: 缺少协议版本号"))
+        print(createFormatLog("NetProtocolCheck: 协议版本检查失败: 缺少协议版本号"))
         return false
     end
 
@@ -426,14 +500,14 @@ local function networkProtocolVersionCheck(protocolVersion)
 
     -- 比较版本号
     if protocolVersion ~= expectedVersion then
-        print(string.format("[UDK:Property] 协议版本不匹配: 期望 %s, 实际 %s",
-            expectedVersion, protocolVersion))
+        print(createFormatLog(string.format("NetProtocolCheck: 协议版本不匹配: 期望 %s, 实际 %s",
+            expectedVersion, protocolVersion)))
         return false
     end
 
     -- 版本匹配
     if UDK_Property.SyncConf.Status.DebugPrint then
-        print(string.format("[UDK:Property] 协议版本验证通过: %s", protocolVersion))
+        print(createFormatLog("NetProtocolCheck: 协议版本匹配: " .. protocolVersion))
     end
 
     return true
@@ -503,6 +577,7 @@ local function networkSyncEventHandle(reqMsg)
             elseif syncReq.object and syncReq.type and syncReq.name then
                 -- 单个属性强制更新
                 UDK_Property.SetProperty(syncReq.object, syncReq.type, syncReq.name, syncReq.data, true)
+                print(string.format("[UDK:Property] NetSyncHandle: 已接收并应用服务器权威数据，属性 %s", syncReq.name))
             end
         end
     end
@@ -653,7 +728,7 @@ local function networkSyncAuthorityData(playerID, object, propertyType, name, da
             print(createFormatLog(logContent))
         else
             System:SendToAllClients(msgStructure.MsgID, msg)
-            logContent = string.format("NetworkAuthoritySync: 向所有客户端发送了同步请求: %s (%s, %s)",
+            logContent = string.format("NetAuthoritySync: 向所有客户端发送了同步请求: %s (%s, %s)",
                 msgStructure.RequestID, msgStructure.RequestTimestamp, msgStructure.ReqType)
             print(createFormatLog(logContent))
         end
@@ -695,17 +770,18 @@ local function createMessageHandler()
     return function(msgId, msg, playerId)
         -- 检查请求有效性
         local reqValid, errorMsg = networkValidRequest(msg.event.reqTimestamp)
-        local event, syncReq, text = msg.event, msg.syncReq, ""
+        local event, syncReq, text = msg.event, msg.dataSyncReq, ""
+        local envType = UDK_Property.SyncConf.EnvType
 
         -- 处理单机/编辑器模式
-        if msg.event.isServer then
+        if event.envType == envType.Server.ID then
             if UDK_Property.SyncConf.Status.DebugPrint then
                 text = "Client"
                 print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)",
                     text, event.envName, event.reqID, event.reqTimestamp, syncReq.reqType))
             end
         end
-        if msg.event.isClient then
+        if event.envType == envType.Client.ID then
             text = "Server"
             if UDK_Property.SyncConf.Status.DebugPrint then
                 print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)",
@@ -713,7 +789,7 @@ local function createMessageHandler()
                 print(syncReq.object, syncReq.type, syncReq.name, tostring(syncReq.data))
             end
         end
-        if msg.event.isStandalone and UDK_Property.SyncConf.Status.StandaloneDebug then
+        if event.envType == envType.Standalone.ID and UDK_Property.SyncConf.Status.StandaloneDebug then
             text = "Standalone Debug"
             if UDK_Property.SyncConf.Status.DebugPrint then
                 print(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)",
