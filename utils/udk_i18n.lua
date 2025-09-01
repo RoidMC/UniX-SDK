@@ -27,34 +27,69 @@ local UDK_I18N = {}
 ---@param i18n_Toml table 配置表
 ---@return string pasreKey 解析后的键值
 function UDK_I18N.I18NGetKey(key, i18n_lang, i18n_Toml)
-    local currentLang = i18n_lang
-    local i18nTable = i18n_Toml[currentLang]
+    local currentLang = i18n_lang and i18n_lang:lower()                        -- 标准化语言代码为小写
+    local i18nTable = i18n_Toml[currentLang] or i18n_Toml[currentLang:upper()] -- 尝试大写版本
 
-    -- 递归解析复杂键
-    local function parseKey(tbl, parseKeyName)
-        local keys = {}
-        for k in parseKeyName:gmatch("[^%.%[%]]+") do
-            table.insert(keys, k)
-        end
-
-        local current_value = tbl
-        for _, k in ipairs(keys) do
-            if type(current_value) == "table" then
-                -- 检查是否为数组索引
-                if tonumber(k) then
-                    k = tonumber(k) -- Lua 数组索引从1开始，但TOML数组索引从0开始，所以不需要加1
-                end
-                current_value = current_value[k]
-            else
-                return nil
+    if not i18nTable then
+        -- 尝试不区分大小写查找语言代码
+        for lang, content in pairs(i18n_Toml) do
+            if lang:lower() == currentLang:lower() then
+                i18nTable = content
+                break
             end
         end
-        return current_value
     end
 
-    local parsedValue = parseKey(i18nTable, key)
-    if parsedValue ~= nil then
-        return parsedValue
+    if not i18nTable then
+        local logOutput = string.format("[UDK:I18N] Language not found: %s", currentLang)
+        print(logOutput)
+        return logOutput
+    end
+
+    -- 直接查找完整键
+    if i18nTable[key] ~= nil then
+        return i18nTable[key]
+    end
+
+    -- 处理嵌套键
+    local parts = {}
+    for part in key:gmatch("[^%.]+") do
+        table.insert(parts, part)
+    end
+
+    -- 递归查找嵌套值
+    local function getNestedValue(tbl, index)
+        if index > #parts then
+            return tbl
+        end
+
+        local currentKey = parts[index]
+        -- 处理数字索引
+        if tonumber(currentKey) then
+            currentKey = tonumber(currentKey)
+        end
+
+        if type(tbl) ~= "table" then
+            return nil
+        end
+
+        local value = tbl[currentKey]
+        if value == nil then
+            -- 特殊处理：检查是否存在嵌套表结构
+            -- 例如 "test.content" 可能存储为 { test = { content = "值" } }
+            if index == 1 and parts[2] and tbl[parts[1]] and type(tbl[parts[1]]) == "table" then
+                return getNestedValue(tbl[parts[1]], 2)
+            end
+            return nil
+        end
+
+        return getNestedValue(value, index + 1)
+    end
+
+    local result = getNestedValue(i18nTable, 1)
+
+    if result ~= nil then
+        return result
     else
         local logOutput = string.format("[UDK:I18N] Missing Key: %s Lang: %s", key, currentLang)
         Log:PrintError(logOutput)

@@ -39,7 +39,7 @@ end
 
 ---|📘- 将秒数转换为小时、分钟、秒的格式
 ---@param seconds number 当前秒数
----@param display_hms string 显示格式，可选值：'hms'、'hm'、'ms'、'h'、'm'、's'，默认为'hms'
+---@param display_hms string? 显示格式，可选值：'hms'、'hm'、'ms'、'h'、'm'、's'，默认为'hms'
 ---@return string formatted_time 格式化后的时间字符串
 function UDK_Math.ConvertSecondsTohms(seconds, display_hms)
     local _hours = math.floor(seconds / 3600)
