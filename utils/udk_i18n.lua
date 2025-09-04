@@ -73,13 +73,48 @@ function UDK_I18N.I18NGetKey(key, i18n_lang, i18n_Toml)
             return nil
         end
 
+        -- 直接查找当前键
         local value = tbl[currentKey]
+
+        -- 如果找不到当前键
         if value == nil then
-            -- 特殊处理：检查是否存在嵌套表结构
+            -- 1. 检查是否存在完整的点分隔键（如 "key.account_info"）
+            local fullKey = table.concat(parts, ".", index)
+            if tbl[fullKey] ~= nil then
+                -- 如果找到完整键，并且还有更多部分要处理
+                if index < #parts then
+                    -- 如果完整键对应的值是表，继续递归查找
+                    if type(tbl[fullKey]) == "table" then
+                        return getNestedValue(tbl[fullKey], index + 1)
+                    else
+                        -- 如果不是表但还有更多部分，返回nil
+                        return nil
+                    end
+                else
+                    -- 如果这是最后一部分，直接返回值
+                    return tbl[fullKey]
+                end
+            end
+
+            -- 2. 特殊处理：检查是否存在嵌套表结构
             -- 例如 "test.content" 可能存储为 { test = { content = "值" } }
             if index == 1 and parts[2] and tbl[parts[1]] and type(tbl[parts[1]]) == "table" then
                 return getNestedValue(tbl[parts[1]], 2)
             end
+
+            -- 3. 尝试查找点分隔的键组合
+            -- 例如 "key.account_info" 可能存储为 { ["key.account_info"] = { test = 1 } }
+            for i = index + 1, #parts do
+                local combinedKey = table.concat(parts, ".", index, i)
+                if tbl[combinedKey] ~= nil then
+                    if i == #parts then
+                        return tbl[combinedKey]
+                    elseif type(tbl[combinedKey]) == "table" then
+                        return getNestedValue(tbl[combinedKey], i + 1)
+                    end
+                end
+            end
+
             return nil
         end
 
