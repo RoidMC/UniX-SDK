@@ -1,6 +1,6 @@
 -- ==================================================
 -- * UniX SDK - UI Utils
--- * Version: 0.0.1
+-- * Version: 0.0.2
 -- *
 -- * License: MPL-2.0
 -- * See LICENSE file for details.
@@ -32,6 +32,11 @@ local UDK_UI = {}
 --        MapHint = 9,           -- 通用地图提示
 --        EmotesAndActions = 10, -- 表情/动作
 --        QuickChat = 11,        -- 快速聊天
+--        MapCover = 12,        -- 地图封面
+--        MoreSetting = 13,      -- 更多设置
+--        Photo = 14,           -- 拍照
+--        GameSetting = 15,      -- 游戏设置
+--        GameQuit = 16          -- 游戏退出
 --    }
 --}
 
@@ -390,6 +395,11 @@ function UDK_UI.SetNativeInterfaceVisible(interfaceType, isVisible)
         { id = 9, type = UI.UIType.MapHint, desc = "通用地图提示", match_str = "MapHint" },
         { id = 10, type = UI.UIType.EmotesAndActions, desc = "表情/动作", match_str = "EmotesAndActions" },
         { id = 11, type = UI.UIType.QuickChat, desc = "快速聊天", match_str = "QuickChat" },
+        { id = 12, type = UI.UIType.MapCover, desc = "地图封面", match_str = "MapCover" },
+        { id = 13, type = UI.UIType.MoreSetting, desc = "更多设置", match_str = "MoreSetting" },
+        { id = 14, type = UI.UIType.Photo, desc = "拍照", match_str = "Photo" },
+        { id = 15, type = UI.UIType.GameSetting, desc = "游戏设置", match_str = "GameSetting" },
+        { id = 16, type = UI.UIType.GameQuit, desc = "游戏退出", match_str = "GameQuit" },
     }
 
     local returnMap = {}
@@ -413,7 +423,7 @@ function UDK_UI.SetNativeInterfaceVisible(interfaceType, isVisible)
             UI:SetNativeInterfaceVisible(v, isVisible)
             logIndex = v + 1
             logOutput = string.format(logStr, nativeInterfaceMap[logIndex].desc, nativeInterfaceMap[logIndex].type,
-            isVisible, queryType, v)
+                isVisible, queryType, v)
             ULogPrint("INFO", logOutput)
         else
             for _, entry in ipairs(nativeInterfaceMap) do
