@@ -31,7 +31,6 @@ local UDK = {
     Storage = require("Public.UniX-SDK.utils.udk_storage"),
     Property = require("Public.UniX-SDK.utils.udk_property"),
     Composer = require("Public.UniX-SDK.utils.udk_composer"),
-    --Logger = require("Public.UniX-SDK.utils.udk_logger"),
     TomlUtils = require("Public.UniX-SDK.utils.udk_toml"),
     Event = require("Public.UniX-SDK.utils.udk_event"),
     Timer = require("Public.UniX-SDK.utils.udk_timer"),

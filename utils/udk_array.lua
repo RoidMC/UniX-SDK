@@ -131,4 +131,17 @@ function UDK_Array.SortArrayByKey(table)
     return sorted_table
 end
 
+---|📘- 获取表中元素的数量
+---<br>
+---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-array/#udkarraygetlength)
+---@param table table 要计算长度的表
+---@return number length 返回表中键值对的数量
+function UDK_Array.GetLength(table)
+    local count = 0
+    for _ in pairs(table) do
+        count = count + 1
+    end
+    return count
+end
+
 return UDK_Array
