@@ -84,10 +84,55 @@ end
 ---|📘- 设置UI可见性
 ---<br>
 ---| `范围`：`客户端`
----@param showWidgetIDs any | any[] 要显示的控件ID列表
----@param hideWidgetIDs any | any[] 要隐藏的控件ID列表
+---| `兼容性`：支持多种调用方式
+---<br>
+---| 用法1（标准）：UDK_UI.SetUIVisibility(showWidgetIDs, hideWidgetIDs)
+---<br>
+---| 用法2（布尔值）：UDK_UI.SetUIVisibility(widgetID, isVisible)
+---<br>
+---| 用法3（传统）：UDK_UI.SetUIVisibility(widgetID) 或 UDK_UI.SetUIVisibility("", widgetID)
+---@param showWidgetIDs any | any[] 要显示的控件ID列表，或者在布尔值用法中为控件ID
+---@param hideWidgetIDs any | any[] 要隐藏的控件ID列表，或者在布尔值用法中为布尔值
 function UDK_UI.SetUIVisibility(showWidgetIDs, hideWidgetIDs)
     checkIsClient("UDK.UI.SetUIVisibility")
+
+    -- 兼容性处理：支持布尔值调用方式 (widgetID, isVisible)
+    if type(hideWidgetIDs) == "boolean" then
+        if hideWidgetIDs then
+            -- 显示控件
+            local oneItem = {}
+            if type(showWidgetIDs) == "table" then
+                UI:SetVisible(showWidgetIDs, true)
+            else
+                table.insert(oneItem, showWidgetIDs)
+                UI:SetVisible(oneItem, true)
+            end
+        else
+            -- 隐藏控件
+            local oneItem = {}
+            if type(showWidgetIDs) == "table" then
+                UI:SetVisible(showWidgetIDs, false)
+            else
+                table.insert(oneItem, showWidgetIDs)
+                UI:SetVisible(oneItem, false)
+            end
+        end
+        return
+    end
+
+    -- 兼容性处理：支持传统调用方式 UDK_UI.SetUIVisibility(widgetID)
+    if hideWidgetIDs == nil then
+        local oneItem = {}
+        if type(showWidgetIDs) == "table" then
+            UI:SetVisible(showWidgetIDs, true)
+        else
+            table.insert(oneItem, showWidgetIDs)
+            UI:SetVisible(oneItem, true)
+        end
+        return
+    end
+
+    -- 标准调用方式：处理隐藏控件
     local oneItem
     if type(hideWidgetIDs) == "table" then
         UI:SetVisible(hideWidgetIDs, false)
@@ -97,6 +142,7 @@ function UDK_UI.SetUIVisibility(showWidgetIDs, hideWidgetIDs)
         UI:SetVisible(oneItem, false)
     end
 
+    -- 标准调用方式：处理显示控件
     if type(showWidgetIDs) == "table" then
         UI:SetVisible(showWidgetIDs, true)
     else
