@@ -306,7 +306,7 @@ local greek_letters = {
 -- 预分配一个固定大小的表用于bytes_to_greek函数
 local result_buffer = {}
 
--- 将bytes转换为希腊字母（未使用）
+-- 将bytes转换为希腊字母
 local function bytes_to_greek(bytes)
     local len = #bytes
     for i = 1, len do
@@ -513,6 +513,18 @@ function UDK_Composer.DecodeWithDelimiter(encoded_bytes, delimiter)
     end
 
     return values
+end
+
+---|📘- 将二进制数据转换为希腊字母表示
+---@param bytes string 要转换的二进制数据
+---@return string 转换后的希腊字母表示
+---@usage
+--- -- 示例：将编码后的数据转换为可视化的希腊字母表示
+--- local encoded = UDK_Composer.Encode({name="test", value=123})
+--- local greek = UDK_Composer.BytesToGreek(encoded)
+--- print(greek) -- 输出希腊字母表示的编码数据，便于调试和可视化
+function UDK_Composer.BytesToGreek(bytes)
+    return bytes_to_greek(bytes)
 end
 
 return UDK_Composer

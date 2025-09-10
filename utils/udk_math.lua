@@ -1,6 +1,6 @@
 -- ==================================================
 -- * UniX SDK - Math
--- * Version: 0.0.1
+-- * Version: 0.0.2
 -- *
 -- * License: MPL-2.0
 -- * See LICENSE file for details.
@@ -17,86 +17,147 @@
 
 local UDK_Math = {}
 
----|📘- 将输入值转换为百分比
----@param value number 当前进度
----@param min_value number 进度条最小值（推荐0）
----@param max_value number 进度条最大值
----@return number percentage 百分比值
-function UDK_Math.ConvertToPercentage(value, min_value, max_value)
-    -- 确保数据值在最小值和最大值之间
-    if value < min_value then
-        value = min_value
+-- 私有辅助函数：参数验证
+local function validateNumber(value, paramName)
+    if type(value) ~= "number" then
+        error("[UDK:Math] Invalid parameter: " .. paramName .. " must be a number")
     end
-    if value > max_value then
-        value = max_value
+end
+
+local function validateNonNegativeNumber(value, paramName)
+    validateNumber(value, paramName)
+    if value < 0 then
+        error("[UDK:Math] Invalid parameter: " .. paramName .. " must be non-negative")
+    end
+end
+
+local function validatePositiveNumber(value, paramName)
+    validateNumber(value, paramName)
+    if value <= 0 then
+        error("[UDK:Math] Invalid parameter: " .. paramName .. " must be positive")
+    end
+end
+
+-- 私有辅助函数：格式化结果
+local function formatResult(value, format)
+    if format ~= nil then
+        if type(format) == "boolean" and format then
+            -- 默认保留适当位数小数
+            return tonumber(string.format("%.5f", value))
+        elseif type(format) == "number" and format >= 0 then
+            -- 自定义小数位数
+            return tonumber(string.format("%." .. math.floor(format) .. "f", value))
+        end
+    end
+    return value
+end
+
+-- 获取时间戳
+local function getTimeStamp()
+    local serverTime = MiscService:GetServerTimeToTime()
+    local timeStamp = MiscService:DateYMDHMSToTime(serverTime) --1702594800
+    return math.floor(timeStamp * 1000)
+end
+
+---|📘- 将数值转换为百分比
+---<br>
+---| 当只传入一个参数时，将其视为0-100范围内的百分比值
+---<br>
+---| 当传入两个参数时，计算part在total中的百分比
+---@param value number 部分值或百分比值
+---@param total number? 总值（可选）
+---@param format boolean|number? 是否格式化结果，当为数字时表示保留的小数位数
+---@return number result 计算后的百分比值
+function UDK_Math.Percentage(value, total, format)
+    validateNumber(value, "value")
+
+    local percentage
+    if total == nil then
+        -- 单参数情况：视为0-100范围内的百分比值
+        percentage = value
+    else
+        -- 双参数情况：计算part在total中的百分比
+        validateNumber(total, "total")
+        if total == 0 then
+            return 0
+        end
+        percentage = (value / total) * 100
     end
 
-    -- 计算百分比
-    local percentage = ((value - min_value) / (max_value - min_value)) * 100
-
-    return percentage
+    return formatResult(percentage, format)
 end
 
 ---|📘- 将秒数转换为小时、分钟、秒的格式
 ---@param seconds number 当前秒数
----@param display_hms string? 显示格式，可选值：'hms'、'hm'、'ms'、'h'、'm'、's'，默认为'hms'
+---@param displayFormat string? 显示格式，可选值：'hms'、'hm'、'ms'、'h'、'm'、's'，默认为'hms'
 ---@return string formatted_time 格式化后的时间字符串
-function UDK_Math.ConvertSecondsTohms(seconds, display_hms)
-    local _hours = math.floor(seconds / 3600)
-    local _minutes = math.floor((seconds % 3600) / 60)
-    local _seconds = math.floor(seconds % 60)
+function UDK_Math.ConvertSecondsToHMS(seconds, displayFormat)
+    validateNonNegativeNumber(seconds, "seconds")
+
+    local hours = math.floor(seconds / 3600)
+    local minutes = math.floor((seconds % 3600) / 60)
+    local secs = math.floor(seconds % 60)
     local formatted_time
 
     -- 格式化输出，确保分钟和秒都是两位数
-    if display_hms == 'hms' then
-        formatted_time = string.format("%02d:%02d:%02d", _hours, _minutes, _seconds)
-    elseif display_hms == 'hm' then
-        formatted_time = string.format("%02d:%02d", _hours, _minutes)
-    elseif display_hms == 'ms' then
-        formatted_time = string.format("%02d:%02d", _minutes, _seconds)
-    elseif display_hms == 'h' then
-        formatted_time = string.format("%02d", _hours)
-    elseif display_hms == 'm' then
-        formatted_time = string.format("%02d", _minutes)
-    elseif display_hms == 's' then
-        formatted_time = string.format("%02d", _seconds)
+    if displayFormat == 'hms' then
+        formatted_time = string.format("%02d:%02d:%02d", hours, minutes, secs)
+    elseif displayFormat == 'hm' then
+        formatted_time = string.format("%02d:%02d", hours, minutes)
+    elseif displayFormat == 'ms' then
+        formatted_time = string.format("%02d:%02d", minutes, secs)
+    elseif displayFormat == 'h' then
+        formatted_time = string.format("%02d", hours)
+    elseif displayFormat == 'm' then
+        formatted_time = string.format("%02d", minutes)
+    elseif displayFormat == 's' then
+        formatted_time = string.format("%02d", secs)
     else
-        formatted_time = string.format("%02d:%02d:%02d", _hours, _minutes, _seconds) -- 默认输出 hms 格式
+        formatted_time = string.format("%02d:%02d:%02d", hours, minutes, secs) -- 默认输出 hms 格式
     end
 
     return formatted_time
 end
 
----|📘- 计算两个向量的距离
----@param Pos_X number 向量X坐标
----@param Pos_Y number 向量Y坐标
----@return number math.sqrt 两个向量的距离
-function UDK_Math.CalcSqrt(Pos_X, Pos_Y)
-    return math.sqrt(Pos_X * Pos_X + Pos_Y * Pos_Y)
+---|📘- 计算两个点之间的距离
+---@param x1 number 第一个点的X坐标
+---@param y1 number 第一个点的Y坐标
+---@param x2 number 第二个点的X坐标
+---@param y2 number 第二个点的Y坐标
+---@return number distance 两点之间的距离
+function UDK_Math.CalcDistance(x1, y1, x2, y2)
+    validateNumber(x1, "x1")
+    validateNumber(y1, "y1")
+    validateNumber(x2, "x2")
+    validateNumber(y2, "y2")
+
+    local dx = x2 - x1
+    local dy = y2 - y1
+    return math.sqrt(dx * dx + dy * dy)
 end
 
----|📘- 指数计算经验需求
----@param base_exp number 基础经验
+---|📘- 计算经验需求值
+---@param baseExp number 基础经验
 ---@param ratio number 倍率系数
----@param current_level number 当前等级
----@param return_mode string? 数值返回模式，可选值："ceil" | "floor" | "float"，填空默认为"ceil"
+---@param currentLevel number 当前等级
+---@param returnMode string? 数值返回模式，可选值："ceil" | "floor" | "float"，默认为"ceil"
 ---@return number result 计算后的经验需求
-function UDK_Math.CalcExpRequire(base_exp, ratio, current_level, return_mode)
+function UDK_Math.CalcExpRequirement(baseExp, ratio, currentLevel, returnMode)
     -- 参数有效性校验
-    if ratio <= 0 or current_level < 0 then
-        error("[UDK:Math] Invalid parameters: ratio must be positive and current_level non-negative")
-    end
+    validatePositiveNumber(ratio, "ratio")
+    validateNonNegativeNumber(currentLevel, "currentLevel")
+    validateNumber(baseExp, "baseExp")
 
     local sqrt_ratio = math.sqrt(ratio)
-    local result_base_exp = base_exp * sqrt_ratio * current_level
+    local result_base_exp = baseExp * sqrt_ratio * currentLevel
     local result
 
     -- 统一处理返回模式
-    if return_mode == "ceil" then
+    if returnMode == "ceil" then
         result = math.ceil(result_base_exp)
-    elseif return_mode == "floor" then
+    elseif returnMode == "floor" then
         result = math.floor(result_base_exp)
-    elseif return_mode == "float" then
+    elseif returnMode == "float" then
         result = result_base_exp
     else
         -- 默认使用ceil并提示
@@ -106,56 +167,34 @@ function UDK_Math.CalcExpRequire(base_exp, ratio, current_level, return_mode)
     return result
 end
 
----|📘- 计算数值的百分比
----@param value number 数值
----@param percentage number 百分比
----@param format boolean? 是否格式化结果
----@return number result 计算后的百分比值
-function UDK_Math.CalcPercentage(value, percentage, format)
-    local result = value * (percentage / 100)
-    if format then
-        result = tonumber(string.format("%.5f", result))
-    end
-    return result
-end
-
--- Snowflake算法参数
-local snowflakeEpoch = 1609459200000 -- Snowflake算法的起始时间戳（例如：2021-01-01 00:00:00）
-local datacenterIdBits = 5           -- 数据中心ID占用的位数
-local workerIdBits = 5               -- 机器ID占用的位数
-local sequenceBits = 12              -- 序列号占用的位数
-
-local maxDatacenterId = 2 ^ datacenterIdBits - 1
-local maxWorkerId = 2 ^ workerIdBits - 1
-local sequenceMask = 2 ^ sequenceBits - 1
-
-local datacenterId = 0   -- 数据中心ID
-local workerId = 0       -- 机器ID
-local sequence = 0       -- 序列号
-local lastTimestamp = -1 -- 上一次生成ID的时间戳
-
--- 获取当前时间戳
-local function getTimestamp()
-    -- Lua2.0用不了os.time()
-    -- 换成Lua2.0提供的接口生成需要的时间戳
-    local serverTime = MiscService:GetServerTimeToTime()
-    local timeStamp = MiscService:DateYMDHMSToTime(serverTime) --1702594800
-    return math.floor(timeStamp * 1000)
-end
-
--- 等待下一个毫秒
-local function waitNextMillis(lastTimestamp)
-    local timestamp = getTimestamp()
-    while timestamp <= lastTimestamp do
-        timestamp = getTimestamp()
-    end
-    return timestamp
-end
-
 ---|📘- Snowflake算法生成唯一ID
 ---@return number id 生成的唯一ID
 function UDK_Math.SnowflakeGenerateID()
-    local timestamp = getTimestamp()
+    -- Snowflake算法参数
+    local snowflakeEpoch = 1609459200000 -- Snowflake算法的起始时间戳（例如：2021-01-01 00:00:00）
+    local datacenterIdBits = 5           -- 数据中心ID占用的位数
+    local workerIdBits = 5               -- 机器ID占用的位数
+    local sequenceBits = 12              -- 序列号占用的位数
+
+    local maxDatacenterId = 2 ^ datacenterIdBits - 1
+    local maxWorkerId = 2 ^ workerIdBits - 1
+    local sequenceMask = 2 ^ sequenceBits - 1
+
+    local datacenterId = 0   -- 数据中心ID
+    local workerId = 0       -- 机器ID
+    local sequence = 0       -- 序列号
+    local lastTimestamp = -1 -- 上一次生成ID的时间戳
+
+    -- 等待下一个毫秒
+    local function waitNextMillis(lastTimestamp)
+        local timestamp = getTimeStamp()
+        while timestamp <= lastTimestamp do
+            timestamp = getTimeStamp()
+        end
+        return timestamp
+    end
+
+    local timestamp =getTimeStamp()
 
     if timestamp < lastTimestamp then
         Log:PrintWarning("[UDK:Math] SnowflakeGenerateID: Clock moved backwards. Refusing to generate id.")
@@ -182,10 +221,12 @@ function UDK_Math.SnowflakeGenerateID()
 end
 
 ---|📘- 生成NanoID
---- @param size string ID长度，默认21
---- @return string
+--- @param size number ID长度，默认21
+--- @return string id 生成的NanoID
 function UDK_Math.NanoIDGenerate(size)
-    math.randomseed(getTimestamp()) -- 初始化随机种子
+    validateNonNegativeNumber(size or 21, "size")
+
+    math.randomseed(getTimeStamp()) -- 初始化随机种子
     size = size or 21
     local chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
     local id = ""
@@ -199,12 +240,14 @@ end
 ---|📘- 62进制编码
 ---<br>
 ---| 编码函数：将数字转换为10位62进制字符串
----@param param number 要编码的数值
----@return string 10位62进制字符串
-function UDK_Math.EncodeToUID(param)
+---@param value number 要编码的数值
+---@return string uid 10位62进制字符串
+function UDK_Math.EncodeToUID(value)
+    validateNonNegativeNumber(value, "value")
+
     local result = ""
     local charset = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    local num = tonumber(param)
+    local num = tonumber(value)
 
     -- 特殊情况处理
     if num == 0 then
@@ -230,8 +273,12 @@ end
 ---<br>
 ---| 解码函数：将10位62进制字符串转换为数字
 ---@param uid string 10位62进制字符串
----@return number return 解码后的数字
+---@return number value 解码后的数字
 function UDK_Math.DecodeFromUID(uid)
+    if type(uid) ~= "string" then
+        error("[UDK:Math] Invalid parameter: uid must be a string")
+    end
+
     local result = 0
     local charset = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -260,36 +307,34 @@ end
 ---| `更新频率`：`秒`
 ---@return number timestamp 当前时间戳（毫秒）
 function UDK_Math.GetTimestamp()
-    local serverTime = MiscService:GetServerTimeToTime()
-    local timeStamp = MiscService:DateYMDHMSToTime(serverTime) --1702594800
-    return math.floor(timeStamp * 1000)
+    return getTimeStamp()
 end
 
 ---|📘- 线性增长算法
----@param base_value number 基础值（次数0时的默认值）
----@param increment_step number 每次递增值（正数）
----@param occurrence_count number 出现次数（≥0）
----@param align_mode string 对齐模式: "round"|"ceil"|"floor"|"none"
----@return number 对齐后的计算结果
-function UDK_Math.LinearGrowth(base_value, increment_step, occurrence_count, align_mode)
+---@param baseValue number 基础值（次数0时的默认值）
+---@param incrementStep number 每次递增值（正数）
+---@param occurrenceCount number 出现次数（≥0）
+---@param alignMode string? 对齐模式: "round"|"ceil"|"floor"|"none"，默认为"none"
+---@return number result 对齐后的计算结果
+function UDK_Math.LinearGrowth(baseValue, incrementStep, occurrenceCount, alignMode)
     -- 参数校验
-    if increment_step < 0 or occurrence_count < 0 then
-        error("[UDK:Math] Invalid parameters: increment_step and occurrence_count must be non-negative")
-    end
+    validateNumber(baseValue, "baseValue")
+    validateNonNegativeNumber(incrementStep, "incrementStep")
+    validateNonNegativeNumber(occurrenceCount, "occurrenceCount")
 
     -- 默认值处理
-    if occurrence_count == 0 then
-        return base_value
+    if occurrenceCount == 0 then
+        return baseValue
     end
 
-    local raw_result = base_value + increment_step * occurrence_count
+    local raw_result = baseValue + incrementStep * occurrenceCount
 
     -- 对齐处理
-    if align_mode == "round" then
+    if alignMode == "round" then
         return math.floor(raw_result + 0.5) -- 四舍五入
-    elseif align_mode == "ceil" then
+    elseif alignMode == "ceil" then
         return math.ceil(raw_result)
-    elseif align_mode == "floor" then
+    elseif alignMode == "floor" then
         return math.floor(raw_result)
     else
         return raw_result -- 原始值输出

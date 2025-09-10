@@ -951,7 +951,7 @@ end
 ---| `MotionUnit` | `Timer` | `Task` | `Effects` | `SignalBox` | `Audio` |  `Creature` | `UIWidget` | `Scene` | `Item` | `Color`
 ---<br>
 ---| `Array` | `Map` | `Any` (如果你想YOLO，那么你可以使用这个类型，出问题概不负责)
----@param object string 对象标识符
+---@param object string|number 对象标识符
 ---@param propertyType string 属性类型
 ---@param propertyName string 属性名称
 ---@param data any 属性值
