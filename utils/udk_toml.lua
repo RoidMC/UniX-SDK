@@ -1,6 +1,6 @@
 -- ==================================================
 -- * UniX SDK - Toml Utils
--- * Version: 0.0.1
+-- * Version: 0.0.2
 -- *
 -- * License: MPL-2.0
 -- * See LICENSE file for details.
@@ -43,34 +43,45 @@ local function debug_print(...)
     --Log:PrintDebug("[UDK:TomlDebug]", ... )
 end
 
+-- 预定义转义字符映射表
+local escape_chars = {
+    b = '\\b',     -- 退格符 (\\b)
+    t = '\\t',     -- 制表符 (\\t)
+    n = '\\n',     -- 换行符 (\\n)
+    f = '\\f',     -- 换页符 (\\f)
+    r = '\\r',     -- 回车符 (\\r)
+    ['"'] = '"',   -- 双引号 (\")
+    ['\\'] = '\\', -- 反斜杠 (\\\\)
+    ["'"] = "'"    -- 单引号 (\')
+}
+
+-- Unicode转义序列缓存
+local unicode_cache = {}
+
 -- 处理转义字符
 local function unescape(str)
     debug_print("Unescaping string:", str)
-    local escape_map = {
-        ['\\b'] = '\b',  -- 退格符
-        ['\\t'] = '\t',  -- 制表符
-        ['\\n'] = '\n',  -- 换行符
-        ['\\f'] = '\f',  -- 换页符
-        ['\\r'] = '\r',  -- 回车符
-        ['\\\"'] = '\"', -- 双引号
-        ['\\\''] = '\'', -- 单引号
-        ['\\\\'] = '\\'  -- 反斜杠
-    }
 
-    -- 替换基本转义序列
-    local result = str:gsub('\\([btnfr\\\"\'])', function(c)
-        debug_print("Found escape sequence:", '\\' .. c)
-        return escape_map['\\' .. c] or c
-    end)
+    -- 使用单次替换而非多次替换
+    local result = str:gsub('\\([btnfr\\"\'])', escape_chars)
 
     -- 处理Unicode转义序列（简化版本，只处理ASCII范围）
+    -- 使用缓存避免重复计算
     result = result:gsub('\\u(%x%x%x%x)', function(hex)
+        if unicode_cache[hex] then
+            return unicode_cache[hex]
+        end
+
         local num = tonumber(hex, 16)
         debug_print("Found Unicode sequence:", '\\u' .. hex, "Value:", num)
+        local char
         if num < 128 then
-            return string.char(num)
+            char = string.char(num)
+        else
+            char = '?' -- 对于非ASCII字符，返回占位符
         end
-        return '?' -- 对于非ASCII字符，返回占位符
+        unicode_cache[hex] = char
+        return char
     end)
 
     debug_print("Unescaped result:", result)
@@ -108,11 +119,94 @@ local function parse_multiline_string(value, quote_type)
     return content
 end
 
+-- 预编译常用的正则表达式模式
+local patterns = {
+    triple_quote = "^%s*(\"\"\"|''')(.-)(\"\"\"|\'\'\')%s*$",
+    single_line_string = "^%s*([\"'])(.-[^\\])%1%s*$",
+    integer = "^%d+$",
+    float = "^%d*%.?%d+$",
+    inline_table = "^%s*%{.*%}%s*$",
+    array = "^%[.*%]$",
+    boolean_true = "^true$",
+    boolean_false = "^false$",
+    hex_integer = "^%s*0x[%da-fA-F]+$",
+    oct_integer = "^%s*0o[%d]+$",
+    bin_integer = "^%s*0b[%d]+$",
+    date_time = "^%s*%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%dZ%s*$",
+    local_date = "^%s*%d%d%d%d%-%d%d%-%d%d%s*$",
+    local_time = "^%s*%d%d:%d%d(:%d%d(%.%d+)?)?%s*$",
+    local_date_time = "^%s*%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d(:%d%d(%.%d+)?)?%s*$",
+    offset_date_time = "^%s*(%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%d)[+-]%d%d:%d%d%s*$",
+    parse_offset_datetime = function(value)
+        -- 使用更精确的正则表达式匹配带时区偏移的日期时间
+        local year, month, day, hour, min, sec, offset_sign, offset_h, offset_m =
+            value:match("^%s*(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d):(%d%d)([%+%-])(%d%d):(%d%d)%s*$")
+
+        debug_print("Attempting to parse:", value)
+
+        if not year then
+            -- 尝试另一种格式匹配
+            year, month, day, hour, min, sec, offset_sign, offset_h, offset_m =
+                value:match("(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d):(%d%d)([%+%-])(%d%d):(%d%d)")
+
+            if not year then
+                debug_print("Failed to parse offset datetime:", value)
+                return value
+            end
+        end
+
+        debug_print("Successfully parsed components:")
+        debug_print("Date:", year, month, day)
+        debug_print("Time:", hour, min, sec)
+        debug_print("Offset:", offset_sign, offset_h, offset_m)
+
+        -- 转换为UTC时间
+        local offset_hour_num = tonumber(offset_h)
+        local offset_min_num = tonumber(offset_m)
+
+        -- 根据符号调整偏移量
+        if offset_sign == "+" then
+            offset_hour_num = -offset_hour_num
+            offset_min_num = -offset_min_num
+        end
+
+        local utc_hour = tonumber(hour) + offset_hour_num
+        local utc_min = tonumber(min) + offset_min_num
+
+        debug_print("UTC time calculation:", utc_hour, utc_min)
+
+        -- 处理分钟溢出
+        if utc_min < 0 then
+            utc_min = utc_min + 60
+            utc_hour = utc_hour - 1
+        elseif utc_min >= 60 then
+            utc_min = utc_min - 60
+            utc_hour = utc_hour + 1
+        end
+
+        -- 处理跨日情况
+        local day_num = tonumber(day)
+        if utc_hour < 0 then
+            utc_hour = utc_hour + 24
+            day_num = day_num - 1
+        elseif utc_hour >= 24 then
+            utc_hour = utc_hour - 24
+            day_num = day_num + 1
+        end
+
+        -- 确保日期格式正确（补零）
+        local day_str = string.format("%02d", day_num)
+
+        debug_print("Final UTC time:", year, month, day_str, utc_hour, utc_min, sec)
+
+        return string.format("%s-%s-%sT%02d:%02d:%02d.000Z", year, month, day_str, utc_hour, utc_min, sec)
+    end
+}
+
 --- 根据值的类型进行解析
 local function parse_value(value)
     -- 处理多行字符串（在其他类型检查之前）
-    local triple_quote_pattern = "^%s*(\"\"\"|''')(.-)([\"\']?%1)%s*$" -- 修改正则表达式
-    local start_quote, content, end_quote = value:match(triple_quote_pattern)
+    local start_quote, content, end_quote = value:match(patterns.triple_quote)
     if start_quote then
         local quote_type = start_quote:sub(1, 1) == '"' and 'double' or 'single'
         return parse_multiline_string(value, quote_type)
@@ -120,22 +214,21 @@ local function parse_value(value)
 
     -- 增加对单行字符串的特殊处理
     if value:match('^%s*".*"%s*$') or value:match("^%s*'.*'%s*$") then
-        local quoted = value:match('^%s*(["\'].*["\'])%s*$')
-        if quoted then
-            local str = quoted:sub(2, -2) -- 去除引号
-            if quoted:sub(1, 1) == '"' then
-                return unescape(str)      -- 双引号字符串需要处理转义
+        local quote_char, str = value:match('^%s*(["\'])(.-[^\\])%1%s*$')
+        if quote_char and str then
+            if quote_char == '"' then
+                return unescape(str) -- 双引号字符串需要处理转义
             else
-                return str                -- 单引号字符串不处理转义
+                return str           -- 单引号字符串不处理转义
             end
         end
     end
 
-    if value:match("^%d+$") then
+    if value:match(patterns.integer) then
         return tonumber(value) -- 整数
-    elseif value:match("^%d*%.?%d+$") then
+    elseif value:match(patterns.float) then
         return tonumber(value) -- 浮点数
-    elseif value:match("^%s*%{.*%}%s*$") then
+    elseif value:match(patterns.inline_table) then
         -- 内联表
         local inline_table = {}
         value = value:sub(value:find("{") + 1, value:find("}") - 1) -- 去除花括号
@@ -202,7 +295,7 @@ local function parse_value(value)
         end
 
         return inline_table
-    elseif value:match("^%[.*%]$") then
+    elseif value:match(patterns.array) then
         -- 数组
         local array = {}
         value = value:sub(2, -2) -- 去除方括号
@@ -278,40 +371,35 @@ local function parse_value(value)
             return array[1]
         end
         return array
-    elseif value:match("^%s*\"[^\"]*\"%s*$") then
-        -- 字符串（双引号）
-        value = value:sub(2, -2)
-        return unescape(value)
-    elseif value:match("^%s*'[^\']*'%s*$") then
-        -- 字符串（单引号）
-        value = value:sub(2, -2)
-        return value -- 单引号字符串不处理转义字符
-    elseif value:match("^true$") then
+    elseif value:match(patterns.boolean_true) then
         return true  -- 布尔值 true
-    elseif value:match("^false$") then
+    elseif value:match(patterns.boolean_false) then
         return false -- 布尔值 false
-    elseif value:match("^%s*%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%dZ%s*$") then
+    elseif value:match(patterns.offset_date_time) then
+        -- 带偏移量的日期时间（必须在local_date_time之前检查，避免错误匹配）
+        debug_print("Found offset date time:", value)
+        local result = patterns.parse_offset_datetime(value)
+        debug_print("Converted to UTC:", result)
+        return result
+    elseif value:match(patterns.date_time) then
         -- 日期时间
         return value
-    elseif value:match("^%s*%d%d%d%d%-%d%d%-%d%d%s*$") then
-        -- 本地日期
-        return value
-    elseif value:match("^%s*%d%d:%d%d(:%d%d(%.%d+)?)?%s*$") then
-        -- 本地时间
-        return value
-    elseif value:match("^%s*%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d(:%d%d(%.%d+)?)?%s*$") then
+    elseif value:match(patterns.local_date_time) then
         -- 本地日期时间
         return value
-    elseif value:match("^%s*%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d(:%d%d(%.%d+)?)?[+-]%d%d:%d%d%s*$") then
-        -- 带偏移量的日期时间
+    elseif value:match(patterns.local_date) then
+        -- 本地日期
         return value
-    elseif value:match("^%s*0x[%da-fA-F]+$") then
+    elseif value:match(patterns.local_time) then
+        -- 本地时间
+        return value
+    elseif value:match(patterns.hex_integer) then
         -- 十六进制整数
         return tonumber(value:sub(3), 16)
-    elseif value:match("^%s*0o[%d]+$") then
+    elseif value:match(patterns.oct_integer) then
         -- 八进制整数
         return tonumber(value:sub(3), 8)
-    elseif value:match("^%s*0b[%d]+$") then
+    elseif value:match(patterns.bin_integer) then
         -- 二进制整数
         return tonumber(value:sub(3), 2)
     else
@@ -320,10 +408,18 @@ local function parse_value(value)
 end
 
 local function parse_line(line, current_table)
-    local key, value = line:match("([^=]+)%s*=%s*(.*)")
+    -- 先处理注释
+    local content_part = line
+    local comment_pos = line:find("#")
+    if comment_pos then
+        content_part = line:sub(1, comment_pos - 1)
+    end
+
+    local key, value = content_part:match("([^=]+)%s*=%s*(.*)")
     if key and value then
         key = trim(key)                         -- 去除键的空白字符
         value = trim(value)                     -- 去除值的空白字符
+        debug_print("Parsing key-value:", key, "=", value)
         current_table[key] = parse_value(value) -- 解析值并存储到当前表中
     end
 end
@@ -371,7 +467,13 @@ function UDK_Toml_Lib.Parse(toml_string)
         return data
     end
 
+    -- 预先分割行，避免多次调用gmatch
+    local lines = {}
     for line in toml_string:gmatch("[^\r\n]+") do
+        table.insert(lines, line)
+    end
+
+    for _, line in ipairs(lines) do
         line = trim(line)
 
         if in_multiline then
