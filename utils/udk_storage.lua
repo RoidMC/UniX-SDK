@@ -327,3 +327,5 @@ function UDK_Storage.GetPendingCallbackCount()
     end
     return count
 end
+
+return UDK_Storage
