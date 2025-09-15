@@ -19,7 +19,7 @@ local UDK_Event = {}
 
 ---|📘- 发送信号
 ---<br>
----| `范围`：`服务端`、`客户端`
+---| `范围`：`服务端` | `客户端`
 ---<br>
 ---| [元梦API文档](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/system/index.html#firesignevent)
 ---@param eventName string 事件名称
