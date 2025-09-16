@@ -408,9 +408,32 @@ local function parse_value(value)
 end
 
 local function parse_line(line, current_table)
-    -- 先处理注释
+    -- 先处理注释，但需要考虑字符串内的#不是注释
     local content_part = line
-    local comment_pos = line:find("#")
+    local in_string = false
+    local string_char = nil
+    local comment_pos = nil
+
+    -- 扫描行，找到不在字符串内的#字符
+    for i = 1, #line do
+        local char = line:sub(i, i)
+
+        -- 处理字符串开始和结束
+        if not in_string and (char == '"' or char == "'") then
+            in_string = true
+            string_char = char
+        elseif in_string and char == string_char and line:sub(i - 1, i - 1) ~= '\\' then
+            in_string = false
+        end
+
+        -- 如果找到不在字符串内的#，标记为注释开始
+        if not in_string and char == '#' then
+            comment_pos = i
+            break
+        end
+    end
+
+    -- 如果有注释，截取注释前的内容
     if comment_pos then
         content_part = line:sub(1, comment_pos - 1)
     end
