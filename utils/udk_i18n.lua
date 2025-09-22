@@ -26,6 +26,7 @@ local UDK_I18N = {}
 ---@param i18n_lang string 语言
 ---@param i18n_Toml table 配置表
 ---@return string pasreKey 解析后的键值
+---@return boolean isExist 键值是否存在
 function UDK_I18N.I18NGetKey(key, i18n_lang, i18n_Toml)
     local currentLang = i18n_lang and i18n_lang:lower()                        -- 标准化语言代码为小写
     local i18nTable = i18n_Toml[currentLang] or i18n_Toml[currentLang:upper()] -- 尝试大写版本
@@ -124,11 +125,11 @@ function UDK_I18N.I18NGetKey(key, i18n_lang, i18n_Toml)
     local result = getNestedValue(i18nTable, 1)
 
     if result ~= nil then
-        return result
+        return result, true
     else
         local logOutput = string.format("[UDK:I18N] Missing Key: %s Lang: %s", key, currentLang)
         Log:PrintError(logOutput)
-        return logOutput
+        return logOutput, false
     end
 end
 

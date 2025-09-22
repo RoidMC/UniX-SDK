@@ -26,10 +26,12 @@ local function test_output(name, value)
         print(string.format("Raw string length: %d", #value))
         print(string.format("Content: [%s]", value))
         -- 显示转义字符
-        local escaped = value:gsub("[\r\n\t]", {
+        local escaped = value:gsub("[\r\n\t\f\b]", {
             ["\r"] = "\\r",
             ["\n"] = "\\n",
-            ["\t"] = "\\t"
+            ["\t"] = "\\t",
+            ["\f"] = "\\f",
+            ["\b"] = "\\b"
         })
         print(string.format("With visible escapes: [%s]", escaped))
     else
@@ -70,7 +72,7 @@ offset_datetime = 2023-10-05T14:30:00+02:00
 hex_int = 0x1A
 oct_int = 0o32
 bin_int = 0b11010
-byte_str = "normal string"
+byte_str = "normal string #TEST"
 byte_str2 = 'single quoted string'
 byte_str3 = ""normal string 2""
 
@@ -181,7 +183,7 @@ print("Oct int:", data.dates.oct_int)
 print("Bin int:", data.dates.bin_int)
 print("Byte string:", data.dates.byte_str)
 print("Byte string 2:", data.dates.byte_str2)
-print("Byte string 3", data.dates.byte_str3)
+print("Byte string 3:", data.dates.byte_str3)
 
 print("\n=== Array and Table Tests ===")
 print("Mixed array value 1:", data.mixed_array.values[1])
