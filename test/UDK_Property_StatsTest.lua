@@ -137,13 +137,13 @@ assert_equal(0, (stats.typeCount.Number or 0), "初始Number类型计数应该�
 print("\n测试添加属性...")
 
 -- 添加Number类型属性
-UDK_Property.SetProperty("obj1", "Number", "value1", 42, true) -- 添加true参数跳过同步
+UDK_Property.SetProperty("obj1", "Number", "value1", 42)
 stats = UDK_Property.GetStats()
 assert_equal(1, stats.totalCount, "添加一个属性后总数应该为1")
 assert_equal(1, stats.typeCount.Number, "Number类型计数应该为1")
 
 -- 添加String类型属性
-UDK_Property.SetProperty("obj1", "String", "name", "test", true)
+UDK_Property.SetProperty("obj1", "String", "name", "test")
 stats = UDK_Property.GetStats()
 assert_equal(2, stats.totalCount, "添加两个属性后总数应该为2")
 assert_equal(1, stats.typeCount.String, "String类型计数应该为1")
@@ -152,7 +152,7 @@ assert_equal(1, stats.typeCount.String, "String类型计数应该为1")
 print("\n测试更新属性...")
 
 -- 更新已存在的属性
-UDK_Property.SetProperty("obj1", "Number", "value1", 100, true)
+UDK_Property.SetProperty("obj1", "Number", "value1", 100)
 stats = UDK_Property.GetStats()
 assert_equal(2, stats.totalCount, "更新属性后总数应该保持不变")
 assert_equal(1, stats.typeCount.Number, "更新属性后Number类型计数应该保持不变")
@@ -161,7 +161,7 @@ assert_equal(1, stats.typeCount.Number, "更新属性后Number类型计数应该
 print("\n测试删除属性...")
 
 -- 删除一个属性
-UDK_Property.DeleteProperty("obj1", "Number", "value1", true)
+UDK_Property.DeleteProperty("obj1", "Number", "value1")
 stats = UDK_Property.GetStats()
 assert_equal(1, stats.totalCount, "删除一个属性后总数应该为1")
 assert_equal(0, (stats.typeCount.Number or 0), "删除后Number类型计数应该为0")
@@ -179,7 +179,7 @@ UDK_Property.SetBatchProperties("obj2", {
         flag1 = true,
         flag2 = false
     }
-}, true) -- 添加true参数跳过同步
+}) -- 添加true参数跳过同步
 
 stats = UDK_Property.GetStats()
 assert_equal(5, stats.totalCount, "批量添加后总数应该正确")
@@ -190,14 +190,14 @@ assert_equal(2, stats.typeCount.Boolean, "批量添加后Boolean类型计数应�
 print("\n测试清除属性...")
 
 -- 清除特定类型的属性
-UDK_Property.ClearProperty("obj2", "Number", true)
+UDK_Property.ClearProperty("obj2", "Number")
 stats = UDK_Property.GetStats()
 assert_equal(3, stats.totalCount, "清除特定类型后总数应该正确")
 assert_equal(0, (stats.typeCount.Number or 0), "清除后Number类型计数应该为0")
 assert_equal(2, stats.typeCount.Boolean, "其他类型计数应该保持不变")
 
 -- 清除所有属性
-UDK_Property.ClearProperty("obj2", nil, true)
+UDK_Property.ClearProperty("obj2", nil)
 stats = UDK_Property.GetStats()
 assert_equal(1, stats.totalCount, "清除所有属性后总数应该正确")
 assert_equal(0, (stats.typeCount.Boolean or 0), "清除后Boolean类型计数应该为0")
@@ -205,5 +205,5 @@ assert_equal(0, (stats.typeCount.Boolean or 0), "清除后Boolean类型计数应
 print("\n所有测试通过！✅")
 
 -- 清理测试数据
-UDK_Property.ClearProperty("obj1", nil, true)
-UDK_Property.ClearProperty("obj2", nil, true)
+UDK_Property.ClearProperty("obj1", nil)
+UDK_Property.ClearProperty("obj2", nil)

@@ -118,7 +118,6 @@ end
 
 -- 使用自定义的require加载模块
 local UDK_Property = testRequire("src.Public/unix-sdk/utils/udk_property")
-local bypassSyncflag = true
 
 -- 测试辅助函数
 local function assert_equal(expected, actual, message)
@@ -155,21 +154,21 @@ tests.test_basic_operations = function()
     print("测试基础操作...")
 
     -- 测试设置和获取属性
-    local success = UDK_Property.SetProperty("player1", "Number", "level", 10, bypassSyncflag)
+    local success = UDK_Property.SetProperty("player1", "Number", "level", 10)
     assert_equal(true, success, "设置数值属性")
 
     local value = UDK_Property.GetProperty("player1", "Number", "level")
     assert_equal(10, value, "获取数值属性")
 
     -- 测试更新属性
-    success = UDK_Property.SetProperty("player1", "Number", "level", 20, bypassSyncflag)
+    success = UDK_Property.SetProperty("player1", "Number", "level", 20)
     assert_equal(true, success, "更新数值属性")
 
     value = UDK_Property.GetProperty("player1", "Number", "level")
     assert_equal(20, value, "获取更新后的数值属性")
 
     -- 测试删除属性
-    success = UDK_Property.DeleteProperty("player1", "Number", "level", bypassSyncflag)
+    success = UDK_Property.DeleteProperty("player1", "Number", "level")
     assert_equal(true, success, "删除属性")
 
     local exists = UDK_Property.CheckPropertyHasExist("player1", "Number", "level")
@@ -181,31 +180,31 @@ tests.test_type_system = function()
     print("测试类型系统...")
 
     -- 测试布尔值
-    local success = UDK_Property.SetProperty("obj1", "Boolean", "flag", true, bypassSyncflag)
+    local success = UDK_Property.SetProperty("obj1", "Boolean", "flag", true)
     assert_equal(true, success, "设置布尔值")
 
     -- 测试数值
-    success = UDK_Property.SetProperty("obj1", "Number", "count", 42, bypassSyncflag)
+    success = UDK_Property.SetProperty("obj1", "Number", "count", 42)
     assert_equal(true, success, "设置数值")
 
     -- 测试字符串
-    success = UDK_Property.SetProperty("obj1", "String", "name", "测试对象", bypassSyncflag)
+    success = UDK_Property.SetProperty("obj1", "String", "name", "测试对象")
     assert_equal(true, success, "设置字符串")
 
     -- 测试Vector3
-    success = UDK_Property.SetProperty("obj1", "Vector3", "position", { X = 1, Y = 2, Z = 3 }, bypassSyncflag)
+    success = UDK_Property.SetProperty("obj1", "Vector3", "position", { X = 1, Y = 2, Z = 3 })
     assert_equal(true, success, "设置Vector3")
 
     -- 测试Color
-    success = UDK_Property.SetProperty("obj1", "Color", "color", "#FF0000", bypassSyncflag)
+    success = UDK_Property.SetProperty("obj1", "Color", "color", "#FF0000")
     assert_equal(true, success, "设置Color")
 
     -- 测试数组
-    success = UDK_Property.SetProperty("obj1", "Array", "numbers", { 1, 2, 3, 4, 5 }, bypassSyncflag)
+    success = UDK_Property.SetProperty("obj1", "Array", "numbers", { 1, 2, 3, 4, 5 })
     assert_equal(true, success, "设置数组")
 
     -- 测试类型验证错误
-    success, error = UDK_Property.SetProperty("obj1", "Number", "invalid", "not a number", bypassSyncflag)
+    success, error = UDK_Property.SetProperty("obj1", "Number", "invalid", "not a number")
     assert_equal(false, success, "设置无效类型应该失败")
 end
 
@@ -228,7 +227,7 @@ tests.test_batch_operations = function()
         }
     }
 
-    local success = UDK_Property.SetBatchProperties("character1", properties, bypassSyncflag)
+    local success = UDK_Property.SetBatchProperties("character1", properties)
     assert_equal(true, success, "批量设置属性")
 
     local allProps = UDK_Property.GetAllProperties("character1")
@@ -244,17 +243,17 @@ tests.test_array_support = function()
     print("测试数组支持...")
 
     -- 测试基础类型数组
-    local success = UDK_Property.SetProperty("obj2", "Number", "scores", { 95, 87, 92 }, bypassSyncflag)
+    local success = UDK_Property.SetProperty("obj2", "Number", "scores", { 95, 87, 92 })
     assert_equal(true, success, "设置数值数组")
 
-    success = UDK_Property.SetProperty("obj2", "String", "tags", { "tag1", "tag2", "tag3" }, bypassSyncflag)
+    success = UDK_Property.SetProperty("obj2", "String", "tags", { "tag1", "tag2", "tag3" })
     assert_equal(true, success, "设置字符串数组")
 
     -- 测试复杂类型数组
     success = UDK_Property.SetProperty("obj2", "Vector3", "positions", {
         { X = 1, Y = 1, Z = 1 },
         { X = 2, Y = 2, Z = 2 }
-    }, bypassSyncflag)
+    })
     assert_equal(true, success, "设置Vector3数组")
 
     -- 测试数组验证
@@ -267,8 +266,8 @@ tests.test_type_info_and_stats = function()
     print("测试类型信息和统计...")
 
     -- 设置一些测试数据
-    UDK_Property.SetProperty("obj3", "Number", "value", 42, bypassSyncflag)
-    UDK_Property.SetProperty("obj3", "Array", "list", { 1, 2, 3 }, bypassSyncflag)
+    UDK_Property.SetProperty("obj3", "Number", "value", 42)
+    UDK_Property.SetProperty("obj3", "Array", "list", { 1, 2, 3 })
 
     -- 测试类型信息
     local typeInfo = UDK_Property.GetPropertyTypeInfo("obj3", "Array", "list")
@@ -286,15 +285,15 @@ tests.test_error_handling = function()
     print("测试错误处理...")
 
     -- 测试无效参数
-    local success, error = UDK_Property.SetProperty(nil, "Number", "value", 42, bypassSyncflag)
+    local success, error = UDK_Property.SetProperty(nil, "Number", "value", 42)
     assert_equal(false, success, "设置nil对象应该失败")
 
     -- 测试无效类型
-    success, error = UDK_Property.SetProperty("obj4", "InvalidType", "value", 42, bypassSyncflag)
+    success, error = UDK_Property.SetProperty("obj4", "InvalidType", "value", 42)
     assert_equal(false, success, "设置无效类型应该失败")
 
     -- 测试无效值
-    success, error = UDK_Property.SetProperty("obj4", "Number", "value", "not a number", bypassSyncflag)
+    success, error = UDK_Property.SetProperty("obj4", "Number", "value", "not a number")
     assert_equal(false, success, "设置类型不匹配的值应该失败")
 end
 
@@ -325,12 +324,12 @@ end
 -- 清理函数
 local function cleanup()
     -- 清理所有测试数据
-    UDK_Property.ClearProperty("player1", nil, bypassSyncflag)
-    UDK_Property.ClearProperty("obj1", nil, bypassSyncflag)
-    UDK_Property.ClearProperty("character1", nil, bypassSyncflag)
-    UDK_Property.ClearProperty("obj2", nil, bypassSyncflag)
-    UDK_Property.ClearProperty("obj3", nil, bypassSyncflag)
-    UDK_Property.ClearProperty("obj4", nil, bypassSyncflag)
+    UDK_Property.ClearProperty("player1", nil)
+    UDK_Property.ClearProperty("obj1", nil)
+    UDK_Property.ClearProperty("character1", nil)
+    UDK_Property.ClearProperty("obj2", nil)
+    UDK_Property.ClearProperty("obj3", nil)
+    UDK_Property.ClearProperty("obj4", nil)
 end
 
 -- 运行测试并清理
