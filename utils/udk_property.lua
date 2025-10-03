@@ -82,7 +82,7 @@ UDK_Property.SyncConf = {
     },
     Status = {
         StandaloneDebug = true,    --编辑器和单机环境Debug测试使用
-        DebugPrint      = false,   --调试打印
+        DebugPrint      = false,    --调试打印
         UnitTestMode    = false,   --单元测试模式
         ProtocolVersion = "1.0.0", --协议版本
     },
@@ -511,7 +511,7 @@ local function checkAccessPermission(accessLevel)
     -- 客户端数据可以在客户端环境访问，服务器作为最高权限也可以访问
     if accessLevel == UDK_Property.ACCESS_LEVEL.ClientOnly then
         return envInfo.envID == envType.Client.ID or envInfo.envID == envType.Server.ID or
-        envInfo.envID == envType.Standalone.ID
+            envInfo.envID == envType.Standalone.ID
     end
 
     -- 默认允许访问
@@ -590,7 +590,7 @@ local function networkSyncEventHandle(reqMsg)
         local crud = UDK_Property.SyncConf.CRUD
         -- 创建/更新
         if syncReq.reqType == crud.Create or syncReq.reqType == crud.Update then
-            UDK_Property.SetProperty(syncReq.object, syncReq.type, syncReq.name, syncReq.data)
+            UDK_Property.SetProperty(syncReq.object, syncReq.type, syncReq.name, syncReq.data, nil, true)
             if UDK_Property.SyncConf.Status.DebugPrint then
                 print(string.format("已接收并应用%s权威数据，共 %d 个属性，名称 %s",
                     event.envName or "Unknown", dataStore.stats.totalCount, tostring(syncReq.name)))
@@ -598,15 +598,15 @@ local function networkSyncEventHandle(reqMsg)
         end
         -- 常规删除
         if syncReq.reqType == crud.Delete then
-            UDK_Property.DeleteProperty(syncReq.object, syncReq.type, syncReq.name)
+            UDK_Property.DeleteProperty(syncReq.object, syncReq.type, syncReq.name, true)
         end
         -- 清除
         if syncReq.reqType == crud.Clear then
-            UDK_Property.ClearProperty(syncReq.object, syncReq.type)
+            UDK_Property.ClearProperty(syncReq.object, syncReq.type, true)
         end
         -- 批量设置
         if syncReq.reqType == crud.SetBatch then
-            UDK_Property.SetBatchProperties(syncReq.object, syncReq.data)
+            UDK_Property.SetBatchProperties(syncReq.object, syncReq.data, true)
         end
         -- 强制更新
         if syncReq.reqType == crud.ForceSync then
@@ -619,7 +619,7 @@ local function networkSyncEventHandle(reqMsg)
                 end
             elseif syncReq.object and syncReq.type and syncReq.name then
                 -- 单个属性强制更新
-                UDK_Property.SetProperty(syncReq.object, syncReq.type, syncReq.name, syncReq.data)
+                UDK_Property.SetProperty(syncReq.object, syncReq.type, syncReq.name, syncReq.data, nil, true)
                 print(string.format("[UDK:Property] NetSyncHandle: 已接收并应用服务器权威数据，属性 %s", syncReq.name))
             end
         end
@@ -659,10 +659,14 @@ end
 ---@param name string? 属性名称
 ---@param data? any? 要同步的数据
 ---@return boolean isSuccess 是否成功
-local function networkSyncSend(reqType, object, type, name, data)
+local function networkSyncSend(reqType, object, type, name, data, bypassSync)
     -- 检查是否处于单元测试模式
     if UDK_Property.SyncConf.Status.UnitTestMode then
         return false
+    end
+
+    if bypassSync then
+        return true
     end
 
     -- 参数验证
@@ -703,7 +707,7 @@ local function networkSyncSend(reqType, object, type, name, data)
     }
 
     -- 服务器环境
-    if envInfo.envID == envType.Server.ID then
+    if envInfo.envID == envType.Server.ID or envInfo.isStandalone then
         local msgStructure = {
             MsgID = UDK_Property.NetMsg.ServerSync,
             EventType = UDK_Property.SyncConf.Type.ServerSync,
@@ -1052,9 +1056,10 @@ end
 ---@param propertyName string 属性名称
 ---@param data any 属性值
 ---@param accessLevel string? 访问级别（可选，默认为Public）
+---@param bypassSync boolean? 绕过网络同步（可选，默认为false，当前用于防止netSync出现递归问题）
 ---@return boolean success 是否成功
 ---@return string? error 错误信息
-function UDK_Property.SetProperty(object, propertyType, propertyName, data, accessLevel)
+function UDK_Property.SetProperty(object, propertyType, propertyName, data, accessLevel, bypassSync)
     local normalizedId, error = normalizeObjectId(object)
     if not normalizedId then
         return false, error
@@ -1110,7 +1115,7 @@ function UDK_Property.SetProperty(object, propertyType, propertyName, data, acce
     -- 基于ACL机制决定是否同步，单元测试模式下不进行同步
     if not UDK_Property.SyncConf.Status.UnitTestMode then
         local crudType = isNewProperty and "Create" or "Update"
-        networkSyncSend(crudType, object, propertyType, propertyName, data)
+        networkSyncSend(crudType, object, propertyType, propertyName, data, bypassSync)
     end
 
     return true
@@ -1164,9 +1169,10 @@ end
 ---@param object string|number|table 对象标识符或对象实例
 ---@param propertyType string 属性类型
 ---@param propertyName string 属性名称
+---@param bypassSync boolean? 是否绕过网络同步
 ---@return boolean success 是否成功
 ---@return string? error 错误信息
-function UDK_Property.DeleteProperty(object, propertyType, propertyName)
+function UDK_Property.DeleteProperty(object, propertyType, propertyName, bypassSync)
     local normalizedId, error = normalizeObjectId(object)
     if not normalizedId then
         print(string.format("[UDK:Property][Delete] NormalizeID失败: %s | Object: %s | Timestamp: %d",
@@ -1222,7 +1228,7 @@ function UDK_Property.DeleteProperty(object, propertyType, propertyName)
     -- 基于ACL机制决定是否同步，单元测试模式下不进行同步
     if not UDK_Property.SyncConf.Status.UnitTestMode then
         local crudType = UDK_Property.SyncConf.CRUD.Delete
-        networkSyncSend(crudType, object, propertyType, propertyName)
+        networkSyncSend(crudType, object, propertyType, propertyName, bypassSync)
     end
 
     return true
@@ -1231,9 +1237,10 @@ end
 ---|📘- 删除对象所有的自定义属性数据
 ---@param object string|number|table 对象标识符或对象实例
 ---@param propertyType string? 属性类型（可选，如果不指定则删除所有类型）
+---@param bypassSync boolean? 是否绕过网络同步
 ---@return boolean success 是否成功
 ---@return string? error 错误信息
-function UDK_Property.ClearProperty(object, propertyType)
+function UDK_Property.ClearProperty(object, propertyType, bypassSync)
     local normalizedId, error = normalizeObjectId(object)
     if not normalizedId then
         return false, error
@@ -1275,7 +1282,7 @@ function UDK_Property.ClearProperty(object, propertyType)
     -- 基于ACL机制决定是否同步，单元测试模式下不进行同步
     if not UDK_Property.SyncConf.Status.UnitTestMode then
         local crudType = UDK_Property.SyncConf.CRUD.Clear
-        networkSyncSend(crudType, object, propertyType)
+        networkSyncSend(crudType, object, propertyType, nil, nil, bypassSync)
     end
 
     return true
@@ -1421,9 +1428,10 @@ end
 ---|📘- 批量设置属性数据
 ---@param object string|number 对象标识符或对象实例
 ---@param properties table<string, table<string, any>> 属性表 {propertyType = {propertyName = value}}
+---@param bypassSync boolean? 是否绕过网络同步
 ---@return boolean success 是否成功
 ---@return string? error 错误信息
-function UDK_Property.SetBatchProperties(object, properties)
+function UDK_Property.SetBatchProperties(object, properties, bypassSync)
     local normalizedId, error = normalizeObjectId(object)
     if not normalizedId then
         return false, error
@@ -1460,7 +1468,7 @@ function UDK_Property.SetBatchProperties(object, properties)
     -- 基于ACL机制决定是否同步，单元测试模式下不进行同步
     if not UDK_Property.SyncConf.Status.UnitTestMode then
         local crudType = UDK_Property.SyncConf.CRUD.SetBatch
-        networkSyncSend(crudType, object, "", "", properties)
+        networkSyncSend(crudType, object, "", "", properties, bypassSync)
     end
 
     return true
@@ -1601,6 +1609,45 @@ function UDK_Property.GetStats()
         totalCount = dataStore.stats.totalCount,
         typeCount = dataStore.stats.typeCount,
     }
+end
+
+---|📘- 打印完整的dataStore数据结构
+---@param structure table 要打印的数据结构
+---@param indent number 缩进级别
+local function printDataStructure(structure, indent)
+    indent = indent or 0
+    local indentStr = string.rep("  ", indent)
+
+    if type(structure) ~= "table" then
+        Log:PrintServerLog(indentStr .. tostring(structure) .. " (" .. type(structure) .. ")")
+        return
+    end
+
+    for key, value in pairs(structure) do
+        if type(value) == "table" then
+            Log:PrintServerLog(indentStr .. tostring(key) .. " = {")
+            printDataStructure(value, indent + 1)
+            Log:PrintServerLog(indentStr .. "}")
+        else
+            Log:PrintServerLog(indentStr .. tostring(key) .. " = " .. tostring(value) .. " (" .. type(value) .. ")")
+        end
+    end
+end
+
+---|📘- 完整打印dataStore内容
+---@return table dataStore 数据存储数据结构
+function UDK_Property.PrintDataStore()
+    Log:PrintServerLog("=== DataStore Contents ===")
+    printDataStructure(dataStore, 0)
+    Log:PrintServerLog("==========================")
+end
+
+---|📘- 完整打印accessControlStore内容
+---@return table accessControlStore 访问控制数据结构
+function UDK_Property.PrintAccessControlStore()
+    Log:PrintServerLog("=== AccessControlStore Contents ===")
+    printDataStructure(accessControlStore, 0)
+    Log:PrintServerLog("===================================")
 end
 
 ---|📘- 同步服务器权威数据
