@@ -2,6 +2,7 @@
 
 # UniX SDK
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/RoidMC/UniX-SDK)
 ![GitHub License](https://img.shields.io/github/license/RoidMC/UniX-SDK?style=flat-square)
 ![GitHub Stars](https://img.shields.io/github/stars/RoidMC/UniX-SDK?style=flat-square)
 ![GitHub Forks](https://img.shields.io/github/forks/RoidMC/UniX-SDK?style=flat-square)

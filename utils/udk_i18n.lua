@@ -44,12 +44,12 @@ function UDK_I18N.I18NGetKey(key, i18n_lang, i18n_Toml)
     if not i18nTable then
         local logOutput = string.format("[UDK:I18N] Language not found: %s", currentLang)
         print(logOutput)
-        return logOutput
+        return logOutput, false
     end
 
     -- 直接查找完整键
     if i18nTable[key] ~= nil then
-        return i18nTable[key]
+        return i18nTable[key], true
     end
 
     -- 处理嵌套键

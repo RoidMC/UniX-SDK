@@ -82,7 +82,7 @@ UDK_Property.SyncConf = {
     },
     Status = {
         StandaloneDebug = true,    --编辑器和单机环境Debug测试使用
-        DebugPrint      = false,    --调试打印
+        DebugPrint      = false,   --调试打印
         UnitTestMode    = false,   --单元测试模式
         ProtocolVersion = "1.0.0", --协议版本
     },
