@@ -36,6 +36,7 @@ local UDK = {
     Timer = require("Public.UniX-SDK.utils.udk_timer"),
     I18N = require("Public.UniX-SDK.utils.udk_i18n"),
     Sound = require("Public.UniX-SDK.sound.udk_sound"),
+    Motage = require("Public.UniX-SDK.utils.udk_motage"),
     -- UDK Options Extension
     Extension = require("Public.UniX-SDK.extends.udk_extends")
 }

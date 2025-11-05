@@ -42,7 +42,6 @@ local queryCallbacks = {}
 ---@return table {
 ---     envID: number,       -- 环境ID（Server=1, Client=2, Standalone=0）
 ---     envName: string,     -- 环境名称（"Server", "Client", "Standalone"）
----     isDebug: boolean,    -- 是否启用调试模式（StandaloneDebug）
 ---     isStandalone: boolean -- 是否为单机模式
 ---}
 local function envCheck()
@@ -253,7 +252,7 @@ end
 ---@param saveType string 存储类型（Boolean、Number、String）
 ---@param saveName string 存储名称
 ---@param callback function|nil 回调函数 function(playerId, saveType, saveName, data)，仅在客户端环境中使用
----@return boolean | number | string returnData 存储数据，仅在服务端或单机模式下返回
+---@return boolean | number | string | nil returnData 存储数据，仅在服务端或单机模式下返回
 function UDK_Storage.ArchiveGet(player, saveType, saveName, callback)
     local envInfo = envCheck()
     -- 优先处理服务端或单机模式
