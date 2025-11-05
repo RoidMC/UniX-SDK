@@ -82,7 +82,7 @@ System:RegisterEvent(Events.ON_BEGIN_PLAY, networkBindNotifyInit)
 ---@param targetType string 目标对象类型（玩家 | 生物）[API枚举](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationplayer_type)
 ---@param targetID number 目标对象ID
 ---@param animName string 动画名称
----@param partName string 动画播放类型 [API枚举](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationpart_name)
+---@param partName string? 动画播放类型（默认为FullBody） [API枚举](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationpart_name)
 function UDK_Motage.PlayAnim(targetType, targetID, animName, partName)
     local envInfo = envCheck()
     -- 如果环境是服务端环境，则发送网络消息给客户端，客户端收到消息后调用clientAnimHandler函数处理
@@ -104,7 +104,7 @@ end
 ---@param targetType string 目标对象类型（玩家 | 生物）[API枚举](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationplayer_type)
 ---@param targetID number 目标对象ID
 ---@param animName string 动画名称
----@param partName string 动画播放类型 [API枚举](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationpart_name)
+---@param partName string 动画播放类型（默认为FullBody）  [API枚举](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationpart_name)
 ---@param bleedOutTime number 动画混合时间（默认0.2）
 function UDK_Motage.StopAnim(targetType, targetID, animName, partName, bleedOutTime)
     local envInfo = envCheck()
