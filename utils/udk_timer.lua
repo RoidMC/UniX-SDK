@@ -17,6 +17,10 @@
 
 local UDK_Timer = {}
 
+UDK_Timer.Status = {
+    DebugMode = false
+}
+
 local timer = {} -- 存储用户标签到系统ID的映射 { [label] = {id = system_id, remaining = time, active = bool} }
 
 -- 获取当前时间戳
@@ -55,7 +59,9 @@ local function createTimerMeta(label, timerId, duration_ms, allowOverride, callb
         local oldMeta = timer[label]
         if oldMeta and oldMeta.id then
             TimerManager:RemoveTimer(oldMeta.id)
-            print(string.format("[UDK:Timer] Timer [%s] old instance removed", label))
+            if UDK_Timer.Status.DebugMode then
+                print(string.format("[UDK:Timer] Timer [%s] old instance removed", label))
+            end
         end
     end
 
@@ -139,7 +145,7 @@ end
 ---@param callback function? 自定义回调代码，定时器触发时调用
 ---@return string label 定义的标签
 function UDK_Timer.StartBackwardTimer(label, duration, isLoop, unit, allowOverride, callback)
-    local timeDelta_ms = 100                                   -- 每次减少的时间(毫秒)
+    local timeDelta_ms = 100                                     -- 每次减少的时间(毫秒)
     local timerUUID = label or ("backward_" .. nanoIDGenerate()) -- 生成一个唯一的定时器ID
     local timerId
     isLoop = isLoop or false
@@ -188,10 +194,14 @@ function UDK_Timer.StartBackwardTimer(label, duration, isLoop, unit, allowOverri
                 if isLoop == false then
                     TimerManager:PauseTimer(timerId)
                     meta.active = false
-                    print(string.format("[UDK:Timer] Timer [%s] stopped at zero", timerUUID))
+                    if UDK_Timer.Status.DebugMode then
+                        print(string.format("[UDK:Timer] Timer [%s] stopped at zero", timerUUID))
+                    end
                 else
                     meta.remaining_ms = duration_ms
-                    print(string.format("[UDK:Timer] Timer [%s] reset for loop", timerUUID))
+                    if UDK_Timer.Status.DebugMode then
+                        print(string.format("[UDK:Timer] Timer [%s] reset for loop", timerUUID))
+                    end
                 end
             end
         end
