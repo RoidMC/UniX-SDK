@@ -79,10 +79,10 @@ end
 System:RegisterEvent(Events.ON_BEGIN_PLAY, networkBindNotifyInit)
 
 ---|📘 让目标对象播放动作
----@param targetType string 目标对象类型（玩家 | 生物）[API枚举](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationplayer_type)
+---@param targetType string 目标对象类型（玩家 | 生物）[API枚举](https://creator.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationplayer_type)
 ---@param targetID number 目标对象ID
 ---@param animName string 动画名称
----@param partName string? 动画播放类型（默认为FullBody） [API枚举](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationpart_name)
+---@param partName string? 动画播放类型（默认为FullBody） [API枚举](https://creator.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationpart_name)
 function UDK_Motage.PlayAnim(targetType, targetID, animName, partName)
     local envInfo = envCheck()
     -- 如果环境是服务端环境，则发送网络消息给客户端，客户端收到消息后调用clientAnimHandler函数处理
@@ -101,10 +101,10 @@ function UDK_Motage.PlayAnim(targetType, targetID, animName, partName)
 end
 
 ---|📘 让目标对象停止播放动作
----@param targetType string 目标对象类型（玩家 | 生物）[API枚举](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationplayer_type)
+---@param targetType string 目标对象类型（玩家 | 生物）[API枚举](https://creator.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationplayer_type)
 ---@param targetID number 目标对象ID
 ---@param animName string 动画名称
----@param partName string 动画播放类型（默认为FullBody）  [API枚举](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationpart_name)
+---@param partName string 动画播放类型（默认为FullBody）  [API枚举](https://creator.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationpart_name)
 ---@param bleedOutTime number 动画混合时间（默认0.2）
 function UDK_Motage.StopAnim(targetType, targetID, animName, partName, bleedOutTime)
     local envInfo = envCheck()
@@ -125,7 +125,7 @@ function UDK_Motage.StopAnim(targetType, targetID, animName, partName, bleedOutT
 end
 
 ---|📘 让目标对象播放视频动作
----@param targetType string 目标对象类型（玩家 | 生物）[API枚举](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationplayer_type)
+---@param targetType string 目标对象类型（玩家 | 生物）[API枚举](https://creator.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationplayer_type)
 ---@param targetID number 目标对象ID
 ---@param animIndex number 生成的视频动作id按顺序依次为：1、2、3.
 ---@param isLoop boolean 是否循环播放
@@ -147,7 +147,7 @@ function UDK_Motage.PlayAnimAIGC(targetType, targetID, animIndex, isLoop)
 end
 
 ---|📘 让目标对象停止播放视频动作
----@param targetType string 目标对象类型（玩家 | 生物）[API枚举](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationplayer_type)
+---@param targetType string 目标对象类型（玩家 | 生物）[API枚举](https://creator.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationplayer_type)
 ---@param targetID number 目标对象ID
 function UDK_Motage.StopAnimAIGC(targetType, targetID)
     local envInfo = envCheck()
@@ -165,7 +165,7 @@ function UDK_Motage.StopAnimAIGC(targetType, targetID)
 end
 
 ---|📘 让目标对象播放拼接动作动作
----@param targetType string 目标对象类型（玩家 | 生物）[API枚举](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationplayer_type)
+---@param targetType string 目标对象类型（玩家 | 生物）[API枚举](https://creator.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationplayer_type)
 ---@param targetID number 目标对象ID
 ---@param animIndex number 拼接动作id按顺序依次为：1、2、3.
 ---@param isLoop boolean 是否循环播放
@@ -187,7 +187,7 @@ function UDK_Motage.PlayAnimSplice(targetType, targetID, animIndex, isLoop)
 end
 
 ---|📘 让目标对象停止播放拼接动作动作
----@param targetType string 目标对象类型（玩家 | 生物）[API枚举](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationplayer_type)
+---@param targetType string 目标对象类型（玩家 | 生物）[API枚举](https://creator.ymzx.qq.com/dream_helper/dist/script_helper/apis/animation/index.html#animationplayer_type)
 ---@param targetID number 目标对象ID
 function UDK_Motage.StopAnimSplice(targetType, targetID)
     local envInfo = envCheck()

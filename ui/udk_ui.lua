@@ -421,7 +421,7 @@ end
 ---<br>
 ---| `范围`：`客户端`
 ---<br>
----| 枚举类型：[UI.UIType枚举文档](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/ui/index.html#%E6%9E%9A%E4%B8%BE%E5%88%97%E8%A1%A8)
+---| 枚举类型：[UI.UIType枚举文档](https://creator.ymzx.qq.com/dream_helper/dist/script_helper/apis/ui/index.html#%E6%9E%9A%E4%B8%BE%E5%88%97%E8%A1%A8)
 ---<br>
 ---| `可使用ID或者是枚举内的成员名称字符串，例如"Promotion"、"Countdown"、"TargetPoints"等`
 ---@param interfaceType any | any[] 要设置的原生界面ID列表

@@ -21,7 +21,7 @@ local UDK_Event = {}
 ---<br>
 ---| `范围`：`服务端` | `客户端`
 ---<br>
----| [元梦API文档](https://wiki.ymzx.qq.com/dream_helper/dist/script_helper/apis/system/index.html#firesignevent)
+---| [元梦API文档](https://creator.ymzx.qq.com/dream_helper/dist/script_helper/apis/system/index.html#firesignevent)
 ---@param eventName string 事件名称
 ---@param playerID number | table? 	在哪些玩家端触发信号; 不传时只会在当前端触发; 如果需要通知多个玩家触发，则需要在服务端进行调用，并传入需要触发信号的玩家id数组
 function UDK_Event.FireSignEvent(eventName, playerID)
