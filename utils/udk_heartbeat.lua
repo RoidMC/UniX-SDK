@@ -119,7 +119,7 @@ local function autoSendHeartbeat()
         TimerManager:AddLoopTimer(0.1, function()
             if UDK_Heartbeat.Config.AutoSend and not sendLock then
                 sendLock = true
-                for _, v in ipairs(UDK.Player.GetAllPlayers()) do
+                for _, v in ipairs(Character:GetAllPlayerIds()) do
                     UDK_Heartbeat.Send(v)
                 end
                 TimerManager:AddTimer(UDK_Heartbeat.Config.Interval, function()
@@ -200,7 +200,7 @@ local function clientRecvHeartbeat(msgId, msg, playerId)
     local currentTime = getTimestamp()
     local Msg = {
         timeStamp = currentTime,
-        playerID = UDK.Player.GetLocalPlayerID()
+        playerID = Character:GetLocalPlayerId()
     }
 
     -- 将请求ID包含在响应中，以便服务器可以匹配请求
@@ -246,7 +246,7 @@ local function serverRecvHeartbeat(msgId, msg, playerId)
 
         if UDK_Heartbeat.Config.DebugPrint then
             Log:PrintLog(createFormatLog(string.format("收到来自玩家 %s 的心跳包响应 (消息ID: %s, 时间: %d)",
-                UDK.Player.GetPlayerNickName(msg.playerID), msg.reqID or "未知", currentTime)))
+                Chat:GetCustomName(msg.playerID), msg.reqID or "未知", currentTime)))
         end
 
         -- 处理回调函数
@@ -408,7 +408,7 @@ function UDK_Heartbeat.Send(playerID, timeoutCallback)
             end
 
             -- 更新统计数据 - 群发消息按照在线玩家数量计算
-            local players = UDK.Player.GetAllPlayers()
+            local players = Character:GetAllPlayerIds()
             heartbeatStats.totalSent = heartbeatStats.totalSent + #players
             for _, pid in ipairs(players) do
                 if not heartbeatStats.playerStats[pid] then
