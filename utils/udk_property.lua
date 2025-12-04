@@ -13,7 +13,7 @@
 -- * SDK-Doc: https://wiki.roidmc.com/docs/unix-sdk
 -- *
 -- * 2025 © RoidMC Studios
--- =================================================='
+-- ==================================================
 
 --- 支持类型枚举别名
 ---@alias SupportType
@@ -66,7 +66,7 @@ UDK_Property.NetMsg = {
     ServerAuthoritySync = 200010,
 }
 
--- 同步配置
+--- 同步配置
 ---@class UDK_Property.SyncConf
 UDK_Property.SyncConf = {
     RequestLifetime = 15000, -- 请求超时时间
@@ -99,6 +99,21 @@ UDK_Property.SyncConf = {
     }
 }
 
+--- 内部数据存储
+local dataStore = {
+    -- 主数据存储 {object -> {propertyType -> {propertyName -> value}}}
+    data = {},
+    -- 统计信息
+    stats = {
+        totalCount = 0,
+        typeCount = {},
+    }
+}
+
+-- ==================================================
+-- * UDK Property Utils Code
+-- ==================================================
+
 --- 辅助函数：检查是否为数组（连续的数字键从1开始）
 local function isArray(t)
     if type(t) ~= "table" then return false end
@@ -117,6 +132,26 @@ local function checkArrayElements(arr, elementTypeChecker)
         if not elementTypeChecker(v) then return false end
     end
     return true
+end
+
+---返回当前环境状态 (仅元梦Lua环境可调用)
+---@return table {
+---     envID: number,       -- 环境ID（Server=1, Client=2, Standalone=0）
+---     envName: string,     -- 环境名称（"Server", "Client", "Standalone"）
+---     isDebug: boolean,    -- 是否启用调试模式（StandaloneDebug）
+---     isStandalone: boolean -- 是否为单机模式
+---}
+local function envCheck()
+    local isStandalone = System:IsStandalone()
+    local envType = isStandalone and UDK_Property.SyncConf.EnvType.Standalone or
+        (System:IsServer() and UDK_Property.SyncConf.EnvType.Server or UDK_Property.SyncConf.EnvType.Client)
+
+    return {
+        envID = envType.ID,
+        envName = envType.Name,
+        isDebug = UDK_Property.SyncConf.Status.StandaloneDebug,
+        isStandalone = isStandalone
+    }
 end
 
 --- 辅助函数：类型检查
@@ -264,19 +299,6 @@ local TypeValidators = {
     end,
 }
 
---- 支持的类型已移动到 UDK_Property.Type 中
-
---- 内部数据存储
-local dataStore = {
-    -- 主数据存储 {object -> {propertyType -> {propertyName -> value}}}
-    data = {},
-    -- 统计信息
-    stats = {
-        totalCount = 0,
-        typeCount = {},
-    }
-}
-
 --- 辅助函数：规范化对象标识符
 local function normalizeObjectID(object)
     -- 检查nil值
@@ -316,25 +338,6 @@ local function createFormatLog(msg)
     return log
 end
 
----返回当前环境状态
----@return table {
----     envID: number,       -- 环境ID（Server=1, Client=2, Standalone=0）
----     envName: string,     -- 环境名称（"Server", "Client", "Standalone"）
----     isDebug: boolean,    -- 是否启用调试模式（StandaloneDebug）
----     isStandalone: boolean -- 是否为单机模式
----}
-local function envCheck()
-    local isStandalone = System:IsStandalone()
-    local envType = isStandalone and UDK_Property.SyncConf.EnvType.Standalone or
-        (System:IsServer() and UDK_Property.SyncConf.EnvType.Server or UDK_Property.SyncConf.EnvType.Client)
-
-    return {
-        envID = envType.ID,
-        envName = envType.Name,
-        isDebug = UDK_Property.SyncConf.Status.StandaloneDebug,
-        isStandalone = isStandalone
-    }
-end
 
 --- 辅助函数：获取时间戳
 ---@return number integer 时间戳（毫秒）
@@ -470,6 +473,138 @@ local function determineValueType(value)
     end
 
     return "Any"
+end
+
+-- ==================================================
+-- * UDK Property ACL Code
+-- ==================================================
+
+
+-- ==================================================
+-- * UDK Property Network Code
+-- ==================================================
+
+--- 检测网络请求是否有效
+local function networkValidRequest(requestTime)
+    local currentTime = getTimestamp()
+    if currentTime - requestTime > UDK_Property.SyncConf.RequestLifetime then
+        return false, "请求已过期"
+    else
+        return true, "请求有效"
+    end
+end
+
+--- 检测网络协议版本
+local function networkProtocolVersionCheck(protocolVersion)
+    -- 检查版本号是否存在
+    if not protocolVersion then
+        Log:PrintError(createFormatLog("NetProtocolCheck: 协议版本检查失败: 缺少协议版本号"))
+        return false
+    end
+
+    -- 获取期望的协议版本
+    local expectedVersion = UDK_Property.SyncConf.Status.ProtocolVersion
+
+    -- 比较版本号
+    if protocolVersion ~= expectedVersion then
+        Log:PrintError(createFormatLog(string.format("NetProtocolCheck: 协议版本不匹配: 期望 %s, 实际 %s",
+            expectedVersion, protocolVersion)))
+        return false
+    end
+
+    -- 版本匹配
+    if UDK_Property.SyncConf.Status.DebugPrint then
+        Log:PrintLog(createFormatLog("NetProtocolCheck: 协议版本匹配: " .. protocolVersion))
+    end
+
+    return true
+end
+
+--- 网络同步请求处理
+local function networkSyncEventHandle(reqMsg)
+    -- body
+end
+
+--- 网络同步消息数据包构建
+local function networkSyncMessageBuild(msgStructure, dataStructure)
+    local msg = {
+        event = {
+            id = msgStructure.MsgID,
+            type = msgStructure.EventType,
+            reqID = msgStructure.RequestID or 0,
+            reqTimestamp = msgStructure.RequestTimestamp or 0,
+            envType = msgStructure.EnvType or 0,
+            envName = msgStructure.EnvName or "Unknown",
+            protocolVersion = msgStructure.ProtocolVersion or 0,
+        },
+        dataSyncReq = {
+            reqType = msgStructure.ReqType,
+            object = dataStructure.Object,
+            type = dataStructure.Type,
+            name = dataStructure.Name,
+            data = dataStructure.Data
+        }
+    }
+end
+
+local function networkRpcMessageHandler()
+    return function(_msgId, msg, _playerID)
+        -- 检查请求有效性
+        local reqValid, errorMsg = networkValidRequest(msg.event.reqTimestamp)
+        local event, syncReq, text = msg.event, msg.dataSyncReq, ""
+        local envType = UDK_Property.SyncConf.EnvType
+
+        -- 处理单机/编辑器模式
+        if event.envType == envType.Server.ID then
+            if UDK_Property.SyncConf.Status.DebugPrint then
+                text = "Client"
+                Log:PrintLog(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)",
+                    text, event.envName, event.reqID, event.reqTimestamp, syncReq.reqType))
+            end
+        end
+        if event.envType == envType.Client.ID then
+            text = "Server"
+            if UDK_Property.SyncConf.Status.DebugPrint then
+                Log:PrintLog(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)",
+                    text, event.envName, event.reqID, event.reqTimestamp, syncReq.reqType))
+                Log:PrintLog(syncReq.object, syncReq.type, syncReq.name, tostring(syncReq.data))
+            end
+        end
+        if event.envType == envType.Standalone.ID and UDK_Property.SyncConf.Status.StandaloneDebug then
+            text = "Standalone Debug"
+            if UDK_Property.SyncConf.Status.DebugPrint then
+                Log:PrintLog(string.format("[%s] 收到了来自%s的同步请求: %s (%s, %s)",
+                    text, event.envName, event.reqID, event.reqTimestamp, syncReq.reqType))
+            end
+        end
+
+        -- 处理请求
+        if reqValid then
+            networkSyncEventHandle(msg)
+        else
+            Log:PrintWarning(string.format("收到来自%s的请求，但请求已过期: %s (%s, %s)",
+                text, event.reqID, event.reqTimestamp, syncReq.reqType))
+        end
+    end
+end
+
+--- 网络RPC通知初始化
+local function networkBindNotifyInit()
+    if System:IsServer() then
+        System:BindNotify(UDK_Property.NetMsg.ClientSync, networkRpcMessageHandler())
+        System:BindNotify(UDK_Property.NetMsg.ClientQueryAuthorityData, networkRpcMessageHandler()) --TODO
+    end
+
+    if System:IsClient() then
+        System:BindNotify(UDK_Property.NetMsg.ServerSync, networkRpcMessageHandler())
+        System:BindNotify(UDK_Property.NetMsg.ServerAuthoritySync, networkRpcMessageHandler())
+        System:BindNotify(UDK_Property.NetMsg.ServerSendAuthorityData, networkRpcMessageHandler()) --TODO
+    end
+end
+
+-- 调用游戏运行事件，进行注册网络消息通知
+if not UDK_Property.SyncConf.Status.UnitTestMode then
+    System:RegisterEvent(Events.ON_BEGIN_PLAY, networkBindNotifyInit)
 end
 
 ---| 设置属性数据
