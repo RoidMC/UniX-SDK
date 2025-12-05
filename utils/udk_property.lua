@@ -45,8 +45,8 @@ UDK_Property.Type = {
 --- ACL权控
 ---@enum UDK_Property.AccessLevel
 UDK_Property.AccessLevel = {
-    Public = "Public",      -- 公开访问
-    Isolate = "Isolate",  -- 隔离访问
+    Public = "Public",   -- 公开访问
+    Isolate = "Isolate", -- 隔离访问
 }
 
 --- 网络消息ID
@@ -466,7 +466,7 @@ end
 
 --- 内部数据存储
 local dataStore = {
-    -- 主数据存储 {object -> {propertyType -> {propertyName -> value}}}
+    -- 主数据存储 {object -> {propertyType -> {propertyName -> {value, createdAt, updatedAt}}}
     data = {},
     -- 统计信息
     stats = {
@@ -490,13 +490,25 @@ local function swiftDBSet(object, propertyType, propertyName, data)
     -- 检查是否是新属性
     local isNewProperty = dataStore.data[object][propertyType][propertyName] == nil
 
-    -- 存储数据
-    dataStore.data[object][propertyType][propertyName] = data
+    -- 获取当前时间戳
+    local currentTime = getTimestamp()
 
-    -- 更新统计信息（仅对新属性）
+    -- 存储完整的数据结构
     if isNewProperty then
+        dataStore.data[object][propertyType][propertyName] = {
+            value = data,
+            createdAt = currentTime,
+            updatedAt = currentTime
+        }
+
+        -- 更新统计信息
         dataStore.stats.totalCount = dataStore.stats.totalCount + 1
         dataStore.stats.typeCount[propertyType] = (dataStore.stats.typeCount[propertyType] or 0) + 1
+    else
+        -- 更新现有属性：保留创建时间，更新修改时间
+        local existingData = dataStore.data[object][propertyType][propertyName]
+        existingData.value = data
+        existingData.updatedAt = currentTime
     end
 
     return true
@@ -516,8 +528,10 @@ local function swiftDBGet(object, propertyType, propertyName)
         return nil, "属性不存在"
     end
 
-    -- 直接返回值，包括 false
-    return dataStore.data[object][propertyType][propertyName]
+    local propertyData = dataStore.data[object][propertyType][propertyName]
+
+    -- 返回纯值，屏蔽元数据
+    return propertyData.value
 end
 
 --- 获取对象的所有属性
@@ -533,8 +547,8 @@ local function swiftDBGetAll(object)
     local result = {}
     for propertyType, properties in pairs(dataStore.data[object]) do
         result[propertyType] = {}
-        for propertyName, value in pairs(properties) do
-            result[propertyType][propertyName] = value
+        for propertyName, propertyData in pairs(properties) do
+            result[propertyType][propertyName] = propertyData.value
         end
     end
 
@@ -553,8 +567,8 @@ local function swiftDBGetByType(object, propertyType)
 
     -- 创建一个新表来存储结果，避免直接返回内部数据引用
     local result = {}
-    for propertyName, value in pairs(dataStore.data[object][propertyType]) do
-        result[propertyName] = value
+    for propertyName, propertyData in pairs(dataStore.data[object][propertyType]) do
+        result[propertyName] = propertyData.value
     end
 
     return result
@@ -643,6 +657,30 @@ local function swiftDBClear(object, propertyType)
     end
 
     return true
+end
+
+--- 获取属性的完整数据结构（包括元数据）
+---@param object string 对象ID
+---@param propertyType string 属性类型
+---@param propertyName string 属性名称
+---@return table? propertyData 完整属性数据 {value, createdAt, updatedAt}
+---@return string? error 错误信息
+local function swiftDBGetPropertyData(object, propertyType, propertyName)
+    -- 检查数据是否存在
+    local propertyData = dataStore.data[object] and
+        dataStore.data[object][propertyType] and
+        dataStore.data[object][propertyType][propertyName]
+
+    if not propertyData then
+        return nil, "属性不存在"
+    end
+
+    -- 返回完整的数据结构（深拷贝避免外部修改）
+    return {
+        value = propertyData.value,
+        createdAt = propertyData.createdAt,
+        updatedAt = propertyData.updatedAt
+    }
 end
 
 --- 获取统计信息
@@ -1063,6 +1101,24 @@ function UDK_Property.CheckPropertyHasExist(object, propertyType, propertyName)
 
     -- 使用SwiftDB检查属性是否存在
     return swiftDBExists(normalizeID, propertyType, propertyName)
+end
+
+---|📘- 获取属性的完整元数据
+---
+---| 获取属性的完整信息，包括值、创建时间、更新时间
+---@param object string | number | {id: string | number}
+---@param propertyType SupportType | string
+---@param propertyName string 属性名称
+---@return table? propertyData 属性完整数据 {value, createdAt, updatedAt}
+---@return string? error 错误信息
+function UDK_Property.GetPropertyData(object, propertyType, propertyName)
+    local normalizeID, error = validatePropertyParams(object, propertyType, propertyName, nil, "get")
+    if not normalizeID then
+        return nil, error
+    end
+
+    -- 使用SwiftDB获取完整属性数据
+    return swiftDBGetPropertyData(normalizeID, propertyType, propertyName)
 end
 
 return UDK_Property
