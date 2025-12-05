@@ -262,7 +262,7 @@ local TypeValidators = {
     end,
     Map = function(value)
         if type(value) == "table" then
-            for k, v in pairs(value) do
+            for k, _ in pairs(value) do
                 if type(k) ~= "string" then
                     return false
                 end
@@ -321,7 +321,7 @@ local function createFormatLog(msg)
 end
 
 --- 辅助函数：获取时间戳
----@return number integer 时间戳（毫秒）
+---@return integer timeStamp 时间戳（毫秒）
 local function getTimestamp()
     if UDK_Property.SyncConf.Status.UnitTestMode then
         return os.time()
@@ -552,13 +552,13 @@ local function swiftDBGetAll(object, accessLevel)
 
     -- 创建一个新表来存储结果，避免直接返回内部数据引用
     local result = {}
-    
+
     if accessLevel then
         -- 获取指定访问级别的属性
         if not dataStore.data[object][accessLevel] then
             return {}, "对象没有该访问级别的属性"
         end
-        
+
         result[accessLevel] = {}
         for propertyType, properties in pairs(dataStore.data[object][accessLevel]) do
             result[accessLevel][propertyType] = {}
@@ -693,7 +693,8 @@ local function swiftDBClear(object, accessLevel, propertyType)
                     count = count + 1
                 end
                 dataStore.stats.totalCount = dataStore.stats.totalCount - count
-                dataStore.stats.accessLevelCount[accessLevel] = (dataStore.stats.accessLevelCount[accessLevel] or 0) - count
+                dataStore.stats.accessLevelCount[accessLevel] = (dataStore.stats.accessLevelCount[accessLevel] or 0) -
+                count
                 dataStore.stats.typeCount[pType] = (dataStore.stats.typeCount[pType] or 0) - count
             end
             dataStore.data[object][accessLevel] = nil
@@ -909,9 +910,10 @@ end
 ---@return boolean success 是否成功
 ---@return string? error 错误信息
 function UDK_Property.SetProperty(object, propertyType, propertyName, data, accessLevel)
-    local normalizeID, error = validatePropertyParams(object, propertyType, propertyName, data, "set")
+    local normalizeID, errorMsg = validatePropertyParams(object, propertyType, propertyName, data, "set")
+    local isVaild
     if not normalizeID then
-        return false, error
+        return false, errorMsg
     end
 
     -- 默认为公开
@@ -923,9 +925,9 @@ function UDK_Property.SetProperty(object, propertyType, propertyName, data, acce
     end
 
     -- 验证属性值类型
-    local isVaild, error = validatePropertyValue(normalizeID, propertyType, data)
+    isVaild, errorMsg = validatePropertyValue(normalizeID, propertyType, data)
     if not isVaild then
-        return false, error
+        return false, errorMsg
     end
 
     -- 检查是否是新属性（用于网络同步）
@@ -949,12 +951,14 @@ end
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
 ---@param object string | number | {id: string | number}
 ---@param properties table<string, table<string, any>> 属性表 {propertyType = {propertyName = value}}
+---@param accessLevel string? 访问级别，默认为Public
 ---@return boolean success 是否成功
 ---@return string? error 错误信息
-function UDK_Property.SetBatchProperties(object, properties)
-    local normalizeID, error = normalizeObjectID(object)
+function UDK_Property.SetBatchProperties(object, properties, accessLevel)
+    local normalizeID, errorMsg = normalizeObjectID(object)
+    local success, isValid
     if not normalizeID then
-        return false, error
+        return false, errorMsg
     end
 
     if not properties or type(properties) ~= "table" then
@@ -968,19 +972,21 @@ function UDK_Property.SetBatchProperties(object, properties)
         end
 
         for propertyName, value in pairs(props) do
-            local isValid, error = validatePropertyValue(normalizeID, propertyType, value)
+            isValid, errorMsg = validatePropertyValue(normalizeID, propertyType, value)
             if not isValid then
-                return false, string.format("属性验证失败 [%s.%s]: %s", propertyType, propertyName, error)
+                return false, string.format("属性验证失败 [%s.%s]: %s", propertyType, propertyName, errorMsg)
             end
         end
     end
 
+    accessLevel = accessLevel or UDK_Property.AccessLevel.Public
+
     -- 所有属性验证通过后，开始设置
     for propertyType, props in pairs(properties) do
         for propertyName, value in pairs(props) do
-            local success, error = UDK_Property.SetProperty(object, propertyType, propertyName, value, UDK_Property.AccessLevel.Public)
+            success, errorMsg = swiftDBSet(normalizeID, accessLevel, propertyType, propertyName, value)
             if not success then
-                return false, string.format("设置属性失败 [%s.%s]: %s", propertyType, propertyName, error)
+                return false, string.format("设置属性失败 [%s.%s]: %s", propertyType, propertyName, errorMsg)
             end
         end
     end
