@@ -46,14 +46,7 @@ UDK_Property.Type = {
 ---@enum UDK_Property.AccessLevel
 UDK_Property.AccessLevel = {
     Public = "Public",      -- 公开访问
-    Protected = "Protected" -- 受保护访问
-}
-
---- ACL权控细分权限
----@enum UDK_Property.ACLOwnerShip
-UDK_Property.ACLOwnerShip = {
-    Isolate = "Isolate", -- 隔离
-    Shared = "Shared"    -- 共享
+    Isolate = "Isolate",  -- 隔离访问
 }
 
 --- 网络消息ID
@@ -134,7 +127,7 @@ local function checkArrayElements(arr, elementTypeChecker)
     return true
 end
 
----返回当前环境状态 (仅元梦Lua环境可调用)
+--- 返回当前环境状态 (仅元梦Lua环境可调用)
 ---@return table {
 ---     envID: number,       -- 环境ID（Server=1, Client=2, Standalone=0）
 ---     envName: string,     -- 环境名称（"Server", "Client", "Standalone"）
@@ -338,7 +331,6 @@ local function createFormatLog(msg)
     return log
 end
 
-
 --- 辅助函数：获取时间戳
 ---@return number integer 时间戳（毫秒）
 local function getTimestamp()
@@ -479,6 +471,9 @@ end
 -- * UDK Property ACL Code
 -- ==================================================
 
+-- ==================================================
+-- * UDK Property Database Code
+-- ==================================================
 
 -- ==================================================
 -- * UDK Property Network Code
@@ -547,8 +542,17 @@ local function networkSyncMessageBuild(msgStructure, dataStructure)
     }
 end
 
+--- 网络RPC消息发送
+local function networkRpcMessageSender(reqType, object, propertyType, propertyName, propertyValue)
+    -- 检查是否处于单元测试模式
+    if UDK_Property.SyncConf.Status.UnitTestMode then
+        return false
+    end
+end
+
+--- 网络RPC消息处理
 local function networkRpcMessageHandler()
-    return function(_msgId, msg, _playerID)
+    return function(_, msg)
         -- 检查请求有效性
         local reqValid, errorMsg = networkValidRequest(msg.event.reqTimestamp)
         local event, syncReq, text = msg.event, msg.dataSyncReq, ""
@@ -607,7 +611,11 @@ if not UDK_Property.SyncConf.Status.UnitTestMode then
     System:RegisterEvent(Events.ON_BEGIN_PLAY, networkBindNotifyInit)
 end
 
----| 设置属性数据
+-- ==================================================
+-- * UDK Property Core Functions
+-- ==================================================
+
+---|📘- 设置属性数据
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
 ---@param object string | number | {id: string | number}
@@ -658,10 +666,14 @@ function UDK_Property.SetProperty(object, propertyType, propertyName, data, acce
         dataStore.stats.typeCount[propertyType] = (dataStore.stats.typeCount[propertyType] or 0) + 1
     end
 
+    -- 发送网络RPC消息
+    local crudType = isNewProperty and "Create" or "Update"
+    networkRpcMessageSender(crudType, normalizeID, propertyType, propertyName, data)
+
     return true
 end
 
----| 批量设置属性数据
+---|📘- 批量设置属性数据
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
 ---@param object string | number | {id: string | number}
@@ -705,7 +717,7 @@ function UDK_Property.SetBatchProperties(object, properties)
     return true
 end
 
----| 获取属性值
+---|📘- 获取属性值
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
 ---@param object string | number | {id: string | number}
@@ -758,7 +770,7 @@ function UDK_Property.GetAllProperties(object)
     return result
 end
 
----| 获取属性类型信息
+---|📘- 获取属性类型信息
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
 ---@param object string | number | {id: string | number}
@@ -799,7 +811,7 @@ function UDK_Property.GetPropertyTypeInfo(object, propertyType, propertyName)
     return result
 end
 
----| 获取对象特定类型的所有属性
+---|📘- 获取对象特定类型的所有属性
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
 ---@param object string | number | {id: string | number}
@@ -829,7 +841,7 @@ function UDK_Property.GetPropertiesByType(object, propertyType)
     return result
 end
 
----| 删除属性值
+---|📘- 删除属性值
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
 ---@param object string | number | {id: string | number}
@@ -868,7 +880,7 @@ function UDK_Property.DeleteProperty(object, propertyType, propertyName)
     return true
 end
 
----| 删除对象下面所有对应类型的属性
+---|📘- 删除对象下面所有对应类型的属性
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
 ---@param object string | number | {id: string | number}
@@ -917,7 +929,7 @@ function UDK_Property.ClearProperty(object, propertyType)
     return true
 end
 
----| 获取统计数据
+---|📘- 获取统计数据
 ---@return table info  统计信息
 function UDK_Property.GetStats()
     return {
@@ -926,7 +938,7 @@ function UDK_Property.GetStats()
     }
 end
 
----| 检查值是否为数组类型
+---|📘- 检查值是否为数组类型
 ---@param value any 要检查的值
 ---@param elementType? string 元素类型（可选）
 ---@return boolean isArray 是否为数组
