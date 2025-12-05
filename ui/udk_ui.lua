@@ -367,6 +367,7 @@ function UDK_UI.SetPlayerIconAndName(widgetID, playerID, setType)
     checkIsClient("UDK.UI.SetPlayerIconAndName")
     --功能/社交/头像昵称控件
     local oneItem = {}
+    ---@return UI.AvatarType AvatarType 头像设置类型：Icon|NickName|Both
     local function getAvatarType(param)
         if param == "Icon" then
             return UI.AvatarType.Icon
@@ -415,13 +416,15 @@ end
 ---@return  number[] table  返回以锚点为参考的位置数据{X,Y,Left,Right,Bottom,Top}
 function UDK_UI.GetUIAnchoredPosition(widgetID)
     checkIsClient("UDK.UI.GetUIAnchoredPosition")
-    local oneItem = {}
     local returnData
+    local resultTable = {}
     if type(widgetID) == "table" then
-        returnData = UI:GetAnchoredPosition(widgetID)
+        for _, v in ipairs(widgetID) do
+            table.insert(resultTable, UI:GetAnchoredPosition(v))
+        end
+        returnData = resultTable
     else
-        table.insert(oneItem, widgetID)
-        returnData = UI:GetAnchoredPosition(oneItem)
+        returnData = UI:GetAnchoredPosition(widgetID)
     end
     return returnData
 end
@@ -475,6 +478,8 @@ function UDK_UI.SetNativeInterfaceVisible(interfaceType, isVisible)
         if type(v) == "number" then
             targetIDs[v] = true
             queryType = "Number"
+            --- 禁用EmmyLua对UI:SetNativeInterfaceVisible，无法使用其它手段骗过诊断，只能让它忽略
+            ---@diagnostic disable-next-line
             UI:SetNativeInterfaceVisible(v, isVisible)
             logIndex = v + 1
             logOutput = string.format(logStr, nativeInterfaceMap[logIndex].desc, nativeInterfaceMap[logIndex].type,
@@ -493,6 +498,7 @@ function UDK_UI.SetNativeInterfaceVisible(interfaceType, isVisible)
             end
         end
     end
+
     -- 设置可见性并生成返回值
     for _, entry in ipairs(nativeInterfaceMap) do
         if targetIDs[entry.id] then

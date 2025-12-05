@@ -175,7 +175,7 @@ local function handleClientQuery(msg, playerId)
 end
 
 -- 处理服务器响应查询
-local function handleServerRespQuery(msg, playerId)
+local function handleServerRespQuery(msg, _)
     if not msg or not msg.PlayerID or not msg.SaveType or not msg.SaveName then
         Log:PrintError("[UDK:Storage] Invalid server response query message")
         return
