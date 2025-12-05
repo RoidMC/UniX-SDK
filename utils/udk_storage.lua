@@ -15,6 +15,7 @@
 -- * 2025 © RoidMC Studios
 -- ==================================================
 
+---@class UDK.Storage
 local UDK_Storage = {}
 
 UDK_Storage.NetMsg = {
@@ -217,7 +218,7 @@ end
 System:RegisterEvent(Events.ON_BEGIN_PLAY, networkBindNotifyInit)
 
 ---|📘- 云存储玩家的数据
----<br>
+---
 ---| `范围`：`服务端` | `客户端`
 ---@param player number 玩家ID
 ---@param saveType string 存储类型（Boolean、Number、String）
@@ -244,14 +245,14 @@ function UDK_Storage.ArchiveUpload(player, saveType, saveName, saveData, autoInc
 end
 
 ---|📘- 云存储获取玩家数据
----<br>
+---
 ---| `范围`：`服务端` | `客户端`
----<br>
+---
 ---| 在客户端环境中，可以使用回调函数处理异步返回的数据
 ---@param player number 玩家ID
 ---@param saveType string 存储类型（Boolean、Number、String）
 ---@param saveName string 存储名称
----@param callback function|nil 回调函数 function(playerId, saveType, saveName, data)，仅在客户端环境中使用
+---@param callback function | nil 回调函数 function(playerId, saveType, saveName, data)，仅在客户端环境中使用
 ---@return boolean | number | string | nil returnData 存储数据，仅在服务端或单机模式下返回
 function UDK_Storage.ArchiveGet(player, saveType, saveName, callback)
     local envInfo = envCheck()
@@ -292,7 +293,7 @@ function UDK_Storage.ArchiveGet(player, saveType, saveName, callback)
 end
 
 ---|📘- 清理所有未使用的回调函数
----<br>
+---
 ---| `范围`：`客户端`
 function UDK_Storage.ClearPendingCallbacks()
     local envInfo = envCheck()
@@ -310,7 +311,7 @@ function UDK_Storage.ClearPendingCallbacks()
 end
 
 ---| 📘- 获取待处理的回调数量
----<br>
+---
 ---| `范围`：`客户端`
 ---@return number count 待处理的回调数量
 function UDK_Storage.GetPendingCallbackCount()

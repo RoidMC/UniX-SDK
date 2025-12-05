@@ -15,14 +15,15 @@
 -- * 2025 © RoidMC Studios
 -- ==================================================
 
+---@class UDK.Array
 local UDK_Array = {}
 
 ---|📘- 获取枚举数组内的指定数据
----<br>
+---
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-array/#udkarraygetvaluebyenum)
 ---@param table table Table表
----@param target string|number Key值或Value值
----@return string|number|nil key 返回的Key值或Value值（如果找不到，则返回nil）
+---@param target string | number Key值或Value值
+---@return string | number | nil key 返回的Key值或Value值（如果找不到，则返回nil）
 function UDK_Array.GetValueByEnum(table, target)
     -- 如果输入是字符串（Key），直接返回值
     if type(target) == "string" then
@@ -39,20 +40,20 @@ function UDK_Array.GetValueByEnum(table, target)
 end
 
 ---|📘- 添加枚举数组内的指定数据
----<br>
+---
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-array/#udkarrayaddvaluebyenum)
 ---@param table table Table表
 ---@param key string Key值
----@param value string|number Value值
+---@param value string | number Value值
 function UDK_Array.AddValueByEnum(table, key, value)
     table[key] = value
 end
 
 ---|📘- 移除枚举数组内的指定数据
----<br>
+---
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-array/#udkarrayremovevaluebyenum)
 ---@param table table Table表
----@param target string|number Key值或Value值
+---@param target string | number Key值或Value值
 function UDK_Array.RemoveValueByEnum(table, target)
     -- 如果输入是字符串（Key），直接移除
     if type(target) == "string" then
@@ -69,11 +70,11 @@ function UDK_Array.RemoveValueByEnum(table, target)
 end
 
 ---|📘- 替换枚举数组内的指定数据
----<br>
+---
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-array/#udkarrayreplacevaluebyenum)
 ---@param table table Table表
----@param target string|number 要替换的Key值或Value值
----@param newValue string|number 新的Value值
+---@param target string | number 要替换的Key值或Value值
+---@param newValue string | number 新的Value值
 function UDK_Array.ReplaceValueByEnum(table, target, newValue)
     -- 如果输入是字符串（Key），直接替换值
     if type(target) == "string" then
@@ -92,7 +93,7 @@ function UDK_Array.ReplaceValueByEnum(table, target, newValue)
 end
 
 ---|📘- 根据正则遍历枚举数组内的指定数据
----<br>
+---
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-array/#udkarrayforkeytovalueregx)
 ---@param table table Table表
 ---@param regX string 正则表达式
@@ -108,7 +109,7 @@ function UDK_Array.ForKeyToValueRegX(table, regX)
 end
 
 ---|📘- 通用排序函数，按key排序
----<br>
+---
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-array/#udkarraysortarraybykey)
 ---@param table table 需要排序的表
 ---@return table sorted_table 返回排序后的表
@@ -132,7 +133,7 @@ function UDK_Array.SortArrayByKey(table)
 end
 
 ---|📘- 获取表中元素的数量
----<br>
+---
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-array/#udkarraygetlength)
 ---@param table table 要计算长度的表
 ---@return number length 返回表中键值对的数量

@@ -60,13 +60,13 @@ local function getTimeStamp()
 end
 
 ---|📘- 将数值转换为百分比
----<br>
+---
 ---| 当只传入一个参数时，将其视为0-100范围内的百分比值
----<br>
+---
 ---| 当传入两个参数时，计算part在total中的百分比
 ---@param value number 部分值或百分比值
 ---@param total number? 总值（可选）
----@param format boolean|number? 是否格式化结果，当为数字时表示保留的小数位数
+---@param format boolean | number? 是否格式化结果，当为数字时表示保留的小数位数
 ---@return number result 计算后的百分比值
 function UDK_Math.Percentage(value, total, format)
     validateNumber(value, "value")
@@ -238,7 +238,7 @@ function UDK_Math.NanoIDGenerate(size)
 end
 
 ---|📘- 62进制编码
----<br>
+---
 ---| 编码函数：将数字转换为10位62进制字符串
 ---@param value number 要编码的数值
 ---@return string uid 10位62进制字符串
@@ -270,7 +270,7 @@ function UDK_Math.EncodeToUID(value)
 end
 
 ---|📘- 62进制解码
----<br>
+---
 ---| 解码函数：将10位62进制字符串转换为数字
 ---@param uid string 10位62进制字符串
 ---@return number value 解码后的数字
@@ -303,7 +303,7 @@ function UDK_Math.DecodeFromUID(uid)
 end
 
 ---|📘- 获取当前时间戳
----<br>
+---
 ---| `更新频率`：`秒`
 ---@return number timestamp 当前时间戳（毫秒）
 function UDK_Math.GetTimestamp()

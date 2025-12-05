@@ -15,12 +15,13 @@
 -- * 2025 © RoidMC Studios
 -- ==================================================
 
+---@class UDK.I18N
 local UDK_I18N = {}
 
 ---|📘- I18N获取键值
----<br>
+---
 ---| `使用方法：UDK.I18N.I18NGetKey("keyName", "zh-CN", i18n_Toml)`
----<br>
+---
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-i18n/#udki18ni18ngetkey)
 ---@param key string 键名
 ---@param i18n_lang string 语言

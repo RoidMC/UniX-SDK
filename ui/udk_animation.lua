@@ -15,6 +15,7 @@
 -- * 2025 © RoidMC Studios
 -- ==================================================
 
+---@class UDK.Animation
 local UDK_Animation = {}
 
 -- 存储每个控件的动画状态
@@ -223,7 +224,7 @@ local function createFadeAnimation(id, fadeType, options)
 end
 
 ---|📘- 动画效果 | 淡入
----<br>
+---
 ---| `范围`：`客户端`
 ---@param id number UI元素ID
 ---@param options table? 可选配置参数
@@ -232,7 +233,7 @@ function UDK_Animation.FadeIn(id, options)
 end
 
 ---|📘- 动画效果 | 淡出
----<br>
+---
 ---| `范围`：`客户端`
 ---@param id number UI元素ID
 ---@param options table? 可选配置参数
