@@ -347,6 +347,165 @@ local function nanoIDGenerate(size)
     return id
 end
 
+---计算数据的 CRC32 校验值
+---@param data string | table  输入数据（字符串 或 存储字节值的 table，如 {0x48, 0x65, 0x6c, 0x6c, 0x6f}）
+---@return number checkSum 校验值（32 位无符号整数）
+local function crc32(data)
+    -- CRC32 多项式（IEEE 802.3 标准，反射多项式）
+    local POLYNOMIAL = 0xEDB88320
+
+    -- 预生成 CRC32 查找表（使用闭包避免重复计算）
+    local crc_table = {}
+    for i = 0, 255 do
+        local crc = i
+        for _ = 1, 8 do
+            local crc_msb = (crc & 1) ~= 0
+            crc = crc >> 1
+            if crc_msb then
+                crc = crc ~ POLYNOMIAL
+            end
+        end
+        crc_table[i] = crc
+    end
+
+    -- 表序列化函数（内联实现）
+    local function tableToBytes(tbl)
+        local bytes = {}
+        local byteCount = 0
+
+        local function addByte(byte)
+            byteCount = byteCount + 1
+            bytes[byteCount] = byte & 0xFF
+        end
+
+        local function addInt(num)
+            num = math.floor(num)
+            addByte(num & 0xFF)
+            addByte((num >> 8) & 0xFF)
+            addByte((num >> 16) & 0xFF)
+            addByte((num >> 24) & 0xFF)
+        end
+
+        local function addString(str)
+            addInt(#str)
+            for i = 1, #str do
+                addByte(str:byte(i))
+            end
+        end
+
+        local function serializeTable(t)
+            addByte(1) -- 表标记
+
+            local numberKeys, stringKeys, otherKeys = {}, {}, {}
+            for k in pairs(t) do
+                local tk = type(k)
+                if tk == "number" then
+                    table.insert(numberKeys, k)
+                elseif tk == "string" then
+                    table.insert(stringKeys, k)
+                else
+                    table.insert(otherKeys, k)
+                end
+            end
+
+            table.sort(numberKeys)
+            table.sort(stringKeys)
+            table.sort(otherKeys, function(a, b) return tostring(a) < tostring(b) end)
+
+            local totalKeys = #numberKeys + #stringKeys + #otherKeys
+            addInt(totalKeys)
+
+            for _, k in ipairs(numberKeys) do
+                addByte(2); addInt(k)
+                local v = t[k]
+                local tv = type(v)
+                if tv == "nil" then
+                    addByte(0)
+                elseif tv == "number" then
+                    addByte(2); addInt(v)
+                elseif tv == "string" then
+                    addByte(3); addString(v)
+                elseif tv == "boolean" then
+                    addByte(5); addByte(v and 1 or 0)
+                elseif tv == "table" then
+                    addByte(1); serializeTable(v)
+                else
+                    addByte(4); addString(tostring(v))
+                end
+            end
+
+            for _, k in ipairs(stringKeys) do
+                addByte(3); addString(k)
+                local v = t[k]
+                local tv = type(v)
+                if tv == "nil" then
+                    addByte(0)
+                elseif tv == "number" then
+                    addByte(2); addInt(v)
+                elseif tv == "string" then
+                    addByte(3); addString(v)
+                elseif tv == "boolean" then
+                    addByte(5); addByte(v and 1 or 0)
+                elseif tv == "table" then
+                    addByte(1); serializeTable(v)
+                else
+                    addByte(4); addString(tostring(v))
+                end
+            end
+
+            for _, k in ipairs(otherKeys) do
+                addByte(4); addString(tostring(k))
+                local v = t[k]
+                local tv = type(v)
+                if tv == "nil" then
+                    addByte(0)
+                elseif tv == "number" then
+                    addByte(2); addInt(v)
+                elseif tv == "string" then
+                    addByte(3); addString(v)
+                elseif tv == "boolean" then
+                    addByte(5); addByte(v and 1 or 0)
+                elseif tv == "table" then
+                    addByte(1); serializeTable(v)
+                else
+                    addByte(4); addString(tostring(v))
+                end
+            end
+        end
+
+        serializeTable(tbl)
+        return bytes
+    end
+
+    -- 处理输入数据类型
+    local dataType = type(data)
+    if dataType == "table" then
+        data = tableToBytes(data)
+        dataType = "table"
+    end
+
+    -- 计算CRC32
+    local crc = 0xFFFFFFFF
+
+    if dataType == "string" then
+        local len = #data
+        for i = 1, len do
+            local byte = data:byte(i)
+            local index = (crc ~ byte) & 0xFF
+            crc = (crc >> 8) ~ crc_table[index]
+        end
+    else -- 字节数组
+        local len = #data
+        for i = 1, len do
+            local byte = data[i]
+            local index = (crc ~ (byte & 0xFF)) & 0xFF
+            crc = (crc >> 8) ~ crc_table[index]
+        end
+    end
+
+    return crc ~ 0xFFFFFFFF
+end
+
 --- 通用验证函数
 ---@param object string | number | {id: string | number}
 ---@param propertyType string 强制检查
