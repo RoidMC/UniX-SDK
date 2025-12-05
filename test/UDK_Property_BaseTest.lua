@@ -23,7 +23,7 @@ local originalRequire = require
 
 -- 创建一个自定义的 require 函数，用于在加载模块时注入测试配置
 local function testRequire(moduleName)
-    if moduleName == "src.Public/unix-sdk/utils/udk_property" then
+    if moduleName == "src.Public.UniX-SDK.utils.udk_property" then
         -- 临时修改包加载路径，加载模块但不执行
         local modulePath = package.searchpath(moduleName, package.path)
         if not modulePath then
@@ -89,7 +89,7 @@ local function testRequire(moduleName)
                 date = os.date
             }
         }, {
-            __index = function(t, k)
+            __index = function(_, _)
                 -- 对于未定义的全局变量，返回nil而不是报错
                 return nil
             end
@@ -117,7 +117,7 @@ local function testRequire(moduleName)
 end
 
 -- 使用自定义的require加载模块
-local UDK_Property = testRequire("src.Public/unix-sdk/utils/udk_property")
+local UDK_Property = testRequire("src.Public.UniX-SDK.utils.udk_property")
 
 -- 测试辅助函数
 local function assert_equal(expected, actual, message)
@@ -178,9 +178,10 @@ end
 -- 2. 类型系统测试
 tests.test_type_system = function()
     print("测试类型系统...")
+    local success, errorMsg
 
     -- 测试布尔值
-    local success = UDK_Property.SetProperty("obj1", "Boolean", "flag", true)
+    success = UDK_Property.SetProperty("obj1", "Boolean", "flag", true)
     assert_equal(true, success, "设置布尔值")
 
     -- 测试数值
@@ -192,7 +193,7 @@ tests.test_type_system = function()
     assert_equal(true, success, "设置字符串")
 
     -- 测试Vector
-    local success = UDK_Property.SetProperty("obj1", "Vector", "position", { X = 1, Y = 2, Z = 3 })
+    success = UDK_Property.SetProperty("obj1", "Vector", "position", { X = 1, Y = 2, Z = 3 })
     assert_equal(true, success, "设置Vector")
 
     -- 测试Color
@@ -208,8 +209,11 @@ tests.test_type_system = function()
     assert_equal(true, success, "设置Map")
 
     -- 测试类型验证错误
-    local success, errorMsg = UDK_Property.SetProperty("obj1", "Number", "invalid", "not a number")
+    success, errorMsg = UDK_Property.SetProperty("obj1", "Number", "invalid", "not a number")
     assert_equal(false, success, "设置无效类型应该失败")
+    if errorMsg then
+        print("错误信息: " .. errorMsg)
+    end
 end
 
 -- 3. 批量操作测试
@@ -248,24 +252,28 @@ end
 -- 4. 数组类型测试
 tests.test_array_support = function()
     print("测试数组支持...")
+    local success, isArray, errorMsg
 
     -- 测试基础类型数组
-    local success = UDK_Property.SetProperty("obj2", "Number", "scores", { 95, 87, 92 })
+    success = UDK_Property.SetProperty("obj2", "Number", "scores", { 95, 87, 92 })
     assert_equal(true, success, "设置数值数组")
 
     success = UDK_Property.SetProperty("obj2", "String", "tags", { "tag1", "tag2", "tag3" })
     assert_equal(true, success, "设置字符串数组")
 
     -- 测试复杂类型数组
-    local success = UDK_Property.SetProperty("obj2", "Vector", "positions", {
+    success = UDK_Property.SetProperty("obj2", "Vector", "positions", {
         { X = 1, Y = 1, Z = 1 },
         { X = 2, Y = 2, Z = 2 }
     })
     assert_equal(true, success, "设置Vector数组")
 
     -- 测试数组验证
-    local isArray, errorMsg = UDK_Property.IsArray({ 1, 2, 3 }, "Number")
+    isArray, errorMsg = UDK_Property.IsArray({ 1, 2, 3 }, "Number")
     assert_equal(true, isArray, "验证数值数组")
+    if errorMsg then
+        print("错误信息: " .. errorMsg)
+    end
 end
 
 -- 完全清空数据存储的函数
@@ -281,7 +289,7 @@ local function clearAllData()
     UDK_Property.ClearProperty("statsObj1", nil)
     UDK_Property.ClearProperty("statsObj2", nil)
     UDK_Property.ClearProperty("typeInfoObj", nil)
-    
+
     -- 通过访问内部数据存储来强制清空（通过设置一个空对象然后清除）
     UDK_Property.SetProperty("_temp", "Number", "_temp", 1)
     UDK_Property.DeleteProperty("_temp", "Number", "_temp")
@@ -372,6 +380,7 @@ end
 -- 6. 类型信息测试
 tests.test_type_info = function()
     print("测试类型信息...")
+    local typeInfo
 
     -- 设置一些测试数据
     UDK_Property.SetProperty("typeInfoObj", "Number", "value", 42)
@@ -379,7 +388,7 @@ tests.test_type_info = function()
     UDK_Property.SetProperty("typeInfoObj", "Vector", "pos", { X = 1, Y = 2, Z = 3 })
 
     -- 测试数组类型信息
-    local typeInfo = UDK_Property.GetPropertyTypeInfo("typeInfoObj", "Array", "list")
+    typeInfo = UDK_Property.GetPropertyTypeInfo("typeInfoObj", "Array", "list")
     assert_equal(true, typeInfo.isArray, "验证数组类型信息")
     assert_equal("Number", typeInfo.elementType, "验证数组元素类型")
 
@@ -397,9 +406,10 @@ end
 -- 6. Map类型测试
 tests.test_map_type = function()
     print("测试Map类型...")
+    local success, errorMsg
 
     -- 测试设置Map类型
-    local success = UDK_Property.SetProperty("mapObj", "Map", "config", {
+    success = UDK_Property.SetProperty("mapObj", "Map", "config", {
         debug = true,
         maxPlayers = 100,
         settings = {
@@ -425,30 +435,46 @@ tests.test_map_type = function()
     assert_equal(true, success, "设置嵌套Map")
 
     -- 测试无效的Map（非字符串键）
-    local success, errorMsg = UDK_Property.SetProperty("mapObj", "Map", "invalid",
+    success, errorMsg = UDK_Property.SetProperty("mapObj", "Map", "invalid",
         { [1] = "numeric key", valid = "string key" })
     assert_equal(false, success, "设置无效Map应该失败")
+    if errorMsg then
+        print("错误信息: " .. errorMsg)
+    end
 
     -- 测试有效的Map（全部字符串键）
     success = UDK_Property.SetProperty("mapObj", "Map", "valid", { key1 = "value1", key2 = "value2" })
     assert_equal(true, success, "设置有效Map应该成功")
+    if errorMsg then
+        print("错误信息: " .. errorMsg)
+    end
 end
 
 -- 7. 错误处理测试
 tests.test_error_handling = function()
     print("测试错误处理...")
+    local success, errorMsg
 
     -- 测试无效参数
-    local success, errorMsg = UDK_Property.SetProperty(nil, "Number", "value", 42)
+    success, errorMsg = UDK_Property.SetProperty(nil, "Number", "value", 42)
     assert_equal(false, success, "设置nil对象应该失败")
+    if errorMsg then
+        print("错误信息: " .. errorMsg)
+    end
 
     -- 测试无效类型
     success, errorMsg = UDK_Property.SetProperty("obj4", "InvalidType", "value", 42)
     assert_equal(false, success, "设置无效类型应该失败")
+    if errorMsg then
+        print("错误信息: " .. errorMsg)
+    end
 
     -- 测试无效值
     success, errorMsg = UDK_Property.SetProperty("obj4", "Number", "value", "not a number")
     assert_equal(false, success, "设置类型不匹配的值应该失败")
+    if errorMsg then
+        print("错误信息: " .. errorMsg)
+    end
 end
 
 -- 运行所有测试
