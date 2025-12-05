@@ -92,17 +92,6 @@ UDK_Property.SyncConf = {
     }
 }
 
---- 内部数据存储
-local dataStore = {
-    -- 主数据存储 {object -> {propertyType -> {propertyName -> value}}}
-    data = {},
-    -- 统计信息
-    stats = {
-        totalCount = 0,
-        typeCount = {},
-    }
-}
-
 -- ==================================================
 -- * UDK Property Utils Code
 -- ==================================================
@@ -472,8 +461,198 @@ end
 -- ==================================================
 
 -- ==================================================
--- * UDK Property Database Code
+-- * UDK Property Swift Database Code
 -- ==================================================
+
+--- 内部数据存储
+local dataStore = {
+    -- 主数据存储 {object -> {propertyType -> {propertyName -> value}}}
+    data = {},
+    -- 统计信息
+    stats = {
+        totalCount = 0,
+        typeCount = {},
+    }
+}
+
+--- 设置数据到存储
+---@param object string 对象ID
+---@param propertyType string 属性类型
+---@param propertyName string 属性名称
+---@param data any 属性值
+---@return boolean success 是否成功
+---@return string? error 错误信息
+local function swiftDBSet(object, propertyType, propertyName, data)
+    -- 初始化多级存储结构
+    dataStore.data[object] = dataStore.data[object] or {}
+    dataStore.data[object][propertyType] = dataStore.data[object][propertyType] or {}
+
+    -- 检查是否是新属性
+    local isNewProperty = dataStore.data[object][propertyType][propertyName] == nil
+
+    -- 存储数据
+    dataStore.data[object][propertyType][propertyName] = data
+
+    -- 更新统计信息（仅对新属性）
+    if isNewProperty then
+        dataStore.stats.totalCount = dataStore.stats.totalCount + 1
+        dataStore.stats.typeCount[propertyType] = (dataStore.stats.typeCount[propertyType] or 0) + 1
+    end
+
+    return true
+end
+
+--- 从存储获取数据
+---@param object string 对象ID
+---@param propertyType string 属性类型
+---@param propertyName string 属性名称
+---@return any? data 属性值
+---@return string? error 错误信息
+local function swiftDBGet(object, propertyType, propertyName)
+    -- 检查数据是否存在
+    if dataStore.data[object] == nil or
+        dataStore.data[object][propertyType] == nil or
+        dataStore.data[object][propertyType][propertyName] == nil then
+        return nil, "属性不存在"
+    end
+
+    -- 直接返回值，包括 false
+    return dataStore.data[object][propertyType][propertyName]
+end
+
+--- 获取对象的所有属性
+---@param object string 对象ID
+---@return table<string, table<string, any>>? properties 属性表 {propertyType = {propertyName = value}}
+---@return string? error 错误信息
+local function swiftDBGetAll(object)
+    if not dataStore.data[object] then
+        return {}, "对象没有任何属性"
+    end
+
+    -- 创建一个新表来存储结果，避免直接返回内部数据引用
+    local result = {}
+    for propertyType, properties in pairs(dataStore.data[object]) do
+        result[propertyType] = {}
+        for propertyName, value in pairs(properties) do
+            result[propertyType][propertyName] = value
+        end
+    end
+
+    return result
+end
+
+--- 获取对象特定类型的所有属性
+---@param object string 对象ID
+---@param propertyType string 属性类型
+---@return table<string, any>? properties 属性表 {propertyName = value}
+---@return string? error 错误信息
+local function swiftDBGetByType(object, propertyType)
+    if not dataStore.data[object] or not dataStore.data[object][propertyType] then
+        return {}, "对象没有该类型的属性"
+    end
+
+    -- 创建一个新表来存储结果，避免直接返回内部数据引用
+    local result = {}
+    for propertyName, value in pairs(dataStore.data[object][propertyType]) do
+        result[propertyName] = value
+    end
+
+    return result
+end
+
+--- 检查属性是否存在
+---@param object string 对象ID
+---@param propertyType string 属性类型
+---@param propertyName string 属性名称
+---@return boolean exists 是否存在
+local function swiftDBExists(object, propertyType, propertyName)
+    return dataStore.data[object] ~= nil and
+        dataStore.data[object][propertyType] ~= nil and
+        dataStore.data[object][propertyType][propertyName] ~= nil
+end
+
+--- 删除属性
+---@param object string 对象ID
+---@param propertyType string 属性类型
+---@param propertyName string 属性名称
+---@return boolean success 是否成功
+---@return string? error 错误信息
+local function swiftDBDelete(object, propertyType, propertyName)
+    -- 检查数据是否存在
+    if dataStore.data[object] == nil or
+        dataStore.data[object][propertyType] == nil or
+        dataStore.data[object][propertyType][propertyName] == nil then
+        return false, "属性不存在"
+    end
+
+    -- 更新统计信息
+    dataStore.stats.totalCount = dataStore.stats.totalCount - 1
+    dataStore.stats.typeCount[propertyType] = dataStore.stats.typeCount[propertyType] - 1
+
+    -- 删除属性
+    dataStore.data[object][propertyType][propertyName] = nil
+
+    -- 清理空表
+    if next(dataStore.data[object][propertyType]) == nil then
+        dataStore.data[object][propertyType] = nil
+        if next(dataStore.data[object]) == nil then
+            dataStore.data[object] = nil
+        end
+    end
+
+    return true
+end
+
+--- 清理对象属性
+---@param object string 对象ID
+---@param propertyType string? 属性类型，nil表示清理所有类型
+---@return boolean success 是否成功
+---@return string? error 错误信息
+local function swiftDBClear(object, propertyType)
+    if not dataStore.data[object] then
+        return false, "对象不存在"
+    end
+
+    if propertyType then
+        -- 删除指定类型的所有属性
+        if dataStore.data[object][propertyType] then
+            local count = 0
+            for _ in pairs(dataStore.data[object][propertyType]) do
+                count = count + 1
+            end
+            dataStore.stats.totalCount = dataStore.stats.totalCount - count
+            dataStore.stats.typeCount[propertyType] = (dataStore.stats.typeCount[propertyType] or 0) - count
+            dataStore.data[object][propertyType] = nil
+
+            -- 如果对象没有其他属性类型，清理对象
+            if next(dataStore.data[object]) == nil then
+                dataStore.data[object] = nil
+            end
+        end
+    else
+        -- 删除所有类型的属性
+        for pType, properties in pairs(dataStore.data[object]) do
+            local count = 0
+            for _ in pairs(properties) do
+                count = count + 1
+            end
+            dataStore.stats.totalCount = dataStore.stats.totalCount - count
+            dataStore.stats.typeCount[pType] = (dataStore.stats.typeCount[pType] or 0) - count
+        end
+        dataStore.data[object] = nil
+    end
+
+    return true
+end
+
+--- 获取统计信息
+---@return table info 统计信息
+local function swiftDBGetStats()
+    return {
+        totalCount = dataStore.stats.totalCount,
+        typeCount = dataStore.stats.typeCount,
+    }
+end
 
 -- ==================================================
 -- * UDK Property Network Code
@@ -645,25 +824,13 @@ function UDK_Property.SetProperty(object, propertyType, propertyName, data, acce
         return false, error
     end
 
-    -- 初始化多级存储结构
-    dataStore.data[normalizeID] = dataStore.data[normalizeID] or {}
-    dataStore.data[normalizeID][propertyType] = dataStore.data[normalizeID][propertyType] or {}
+    -- 检查是否是新属性（用于网络同步）
+    local isNewProperty = not swiftDBExists(normalizeID, propertyType, propertyName)
 
-    -- 初始化访问控制结构
-    --accessControlStore[normalizeID] = accessControlStore[normalizeID] or {}
-    --accessControlStore[normalizeID][propertyType] = accessControlStore[normalizeID][propertyType] or {}
-
-    -- 检查是否是新属性
-    local isNewProperty = dataStore.data[normalizeID][propertyType][propertyName] == nil
-
-    -- 存储数据和访问控制信息
-    dataStore.data[normalizeID][propertyType][propertyName] = data
-    --accessControlStore[normalizeID][propertyType][propertyName] = accessLevel
-
-    -- 更新统计信息（仅对新属性）
-    if isNewProperty then
-        dataStore.stats.totalCount = dataStore.stats.totalCount + 1
-        dataStore.stats.typeCount[propertyType] = (dataStore.stats.typeCount[propertyType] or 0) + 1
+    -- 使用SwiftDB存储数据
+    local success, dbError = swiftDBSet(normalizeID, propertyType, propertyName, data)
+    if not success then
+        return false, dbError
     end
 
     -- 发送网络RPC消息
@@ -731,15 +898,8 @@ function UDK_Property.GetProperty(object, propertyType, propertyName)
         return nil, error
     end
 
-    -- 检查数据是否存在
-    if dataStore.data[normalizeID] == nil or
-        dataStore.data[normalizeID][propertyType] == nil or
-        dataStore.data[normalizeID][propertyType][propertyName] == nil then
-        return false, "属性不存在"
-    end
-
-    -- 直接返回值，包括 false
-    return dataStore.data[normalizeID][propertyType][propertyName]
+    -- 使用SwiftDB获取数据
+    return swiftDBGet(normalizeID, propertyType, propertyName)
 end
 
 ---|📘- 获取对象的所有属性
@@ -754,20 +914,8 @@ function UDK_Property.GetAllProperties(object)
         return nil, error
     end
 
-    if not dataStore.data[normalizeID] then
-        return {}, "对象没有任何属性"
-    end
-
-    -- 创建一个新表来存储结果，避免直接返回内部数据引用
-    local result = {}
-    for propertyType, properties in pairs(dataStore.data[normalizeID]) do
-        result[propertyType] = {}
-        for propertyName, value in pairs(properties) do
-            result[propertyType][propertyName] = value
-        end
-    end
-
-    return result
+    -- 使用SwiftDB获取所有属性
+    return swiftDBGetAll(normalizeID)
 end
 
 ---|📘- 获取属性类型信息
@@ -784,9 +932,9 @@ function UDK_Property.GetPropertyTypeInfo(object, propertyType, propertyName)
         return nil, error
     end
 
-    local value = UDK_Property.GetProperty(object, propertyType, propertyName)
-    if not value then
-        return nil, "属性不存在"
+    local value, getError = swiftDBGet(normalizeID, propertyType, propertyName)
+    if getError then
+        return nil, getError
     end
 
     local result = {
@@ -828,17 +976,8 @@ function UDK_Property.GetPropertiesByType(object, propertyType)
         return nil, "属性类型不能为nil"
     end
 
-    if not dataStore.data[normalizeID] or not dataStore.data[normalizeID][propertyType] then
-        return {}, "对象没有该类型的属性"
-    end
-
-    -- 创建一个新表来存储结果，避免直接返回内部数据引用
-    local result = {}
-    for propertyName, value in pairs(dataStore.data[normalizeID][propertyType]) do
-        result[propertyName] = value
-    end
-
-    return result
+    -- 使用SwiftDB获取特定类型的属性
+    return swiftDBGetByType(normalizeID, propertyType)
 end
 
 ---|📘- 删除属性值
@@ -855,29 +994,8 @@ function UDK_Property.DeleteProperty(object, propertyType, propertyName)
         return false, error
     end
 
-    -- 检查数据是否存在
-    if dataStore.data[normalizeID] == nil or
-        dataStore.data[normalizeID][propertyType] == nil or
-        dataStore.data[normalizeID][propertyType][propertyName] == nil then
-        return false, "属性不存在"
-    end
-
-    -- 更新统计信息
-    dataStore.stats.totalCount = dataStore.stats.totalCount - 1
-    dataStore.stats.typeCount[propertyType] = dataStore.stats.typeCount[propertyType] - 1
-
-    -- 删除属性
-    dataStore.data[normalizeID][propertyType][propertyName] = nil
-
-    -- 清理空表
-    if next(dataStore.data[normalizeID][propertyType]) == nil then
-        dataStore.data[normalizeID][propertyType] = nil
-        if next(dataStore.data[normalizeID]) == nil then
-            dataStore.data[normalizeID] = nil
-        end
-    end
-
-    return true
+    -- 使用SwiftDB删除属性
+    return swiftDBDelete(normalizeID, propertyType, propertyName)
 end
 
 ---|📘- 删除对象下面所有对应类型的属性
@@ -893,49 +1011,15 @@ function UDK_Property.ClearProperty(object, propertyType)
         return false, error
     end
 
-    if not dataStore.data[normalizeID] then
-        return false, "对象不存在"
-    end
-
-    if propertyType then
-        -- 删除指定类型的所有属性
-        if dataStore.data[normalizeID][propertyType] then
-            local count = 0
-            for _ in pairs(dataStore.data[normalizeID][propertyType]) do
-                count = count + 1
-            end
-            dataStore.stats.totalCount = dataStore.stats.totalCount - count
-            dataStore.stats.typeCount[propertyType] = (dataStore.stats.typeCount[propertyType] or 0) - count
-            dataStore.data[normalizeID][propertyType] = nil
-
-            -- 如果对象没有其他属性类型，清理对象
-            if next(dataStore.data[normalizeID]) == nil then
-                dataStore.data[normalizeID] = nil
-            end
-        end
-    else
-        -- 删除所有类型的属性
-        for pType, properties in pairs(dataStore.data[normalizeID]) do
-            local count = 0
-            for _ in pairs(properties) do
-                count = count + 1
-            end
-            dataStore.stats.totalCount = dataStore.stats.totalCount - count
-            dataStore.stats.typeCount[pType] = (dataStore.stats.typeCount[pType] or 0) - count
-        end
-        dataStore.data[normalizeID] = nil
-    end
-
-    return true
+    -- 使用SwiftDB清理属性
+    return swiftDBClear(normalizeID, propertyType)
 end
 
 ---|📘- 获取统计数据
 ---@return table info  统计信息
 function UDK_Property.GetStats()
-    return {
-        totalCount = dataStore.stats.totalCount,
-        typeCount = dataStore.stats.typeCount,
-    }
+    -- 使用SwiftDB获取统计信息
+    return swiftDBGetStats()
 end
 
 ---|📘- 检查值是否为数组类型
@@ -977,9 +1061,8 @@ function UDK_Property.CheckPropertyHasExist(object, propertyType, propertyName)
         return false
     end
 
-    return dataStore.data[normalizeID] ~= nil and
-        dataStore.data[normalizeID][propertyType] ~= nil and
-        dataStore.data[normalizeID][propertyType][propertyName] ~= nil
+    -- 使用SwiftDB检查属性是否存在
+    return swiftDBExists(normalizeID, propertyType, propertyName)
 end
 
 return UDK_Property
