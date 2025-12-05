@@ -242,7 +242,9 @@ tests.test_batch_operations = function()
     assert_equal(true, success, "批量设置属性")
 
     local allProps = UDK_Property.GetAllProperties("character1")
-    assert_table_equal(properties, allProps, "验证批量设置的属性")
+    -- 由于GetAllProperties现在返回包含访问级别的结构，需要提取Public级别的数据
+    local publicProps = allProps.Public or {}
+    assert_table_equal(properties, publicProps, "验证批量设置的属性")
 
     -- 测试按类型获取属性
     local numberProps = UDK_Property.GetPropertiesByType("character1", "Number")

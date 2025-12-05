@@ -457,45 +457,48 @@ local function determineValueType(value)
 end
 
 -- ==================================================
--- * UDK Property ACL Code
--- ==================================================
-
--- ==================================================
 -- * UDK Property Swift Database Code
+-- * Built-in ACL-based access control auditing
 -- ==================================================
 
 --- 内部数据存储
 local dataStore = {
-    -- 主数据存储 {object -> {propertyType -> {propertyName -> {value, createdAt, updatedAt}}}
+    -- 主数据存储 {object -> {accessLevel -> {propertyType -> {propertyName -> {value, createdAt, updatedAt}}}}
     data = {},
     -- 统计信息
     stats = {
         totalCount = 0,
+        accessLevelCount = {
+            Public = 0,
+            Isolate = 0
+        },
         typeCount = {},
     }
 }
 
 --- 设置数据到存储
 ---@param object string 对象ID
+---@param accessLevel string 访问级别
 ---@param propertyType string 属性类型
 ---@param propertyName string 属性名称
 ---@param data any 属性值
 ---@return boolean success 是否成功
 ---@return string? error 错误信息
-local function swiftDBSet(object, propertyType, propertyName, data)
+local function swiftDBSet(object, accessLevel, propertyType, propertyName, data)
     -- 初始化多级存储结构
     dataStore.data[object] = dataStore.data[object] or {}
-    dataStore.data[object][propertyType] = dataStore.data[object][propertyType] or {}
+    dataStore.data[object][accessLevel] = dataStore.data[object][accessLevel] or {}
+    dataStore.data[object][accessLevel][propertyType] = dataStore.data[object][accessLevel][propertyType] or {}
 
     -- 检查是否是新属性
-    local isNewProperty = dataStore.data[object][propertyType][propertyName] == nil
+    local isNewProperty = dataStore.data[object][accessLevel][propertyType][propertyName] == nil
 
     -- 获取当前时间戳
     local currentTime = getTimestamp()
 
     -- 存储完整的数据结构
     if isNewProperty then
-        dataStore.data[object][propertyType][propertyName] = {
+        dataStore.data[object][accessLevel][propertyType][propertyName] = {
             value = data,
             createdAt = currentTime,
             updatedAt = currentTime
@@ -503,10 +506,11 @@ local function swiftDBSet(object, propertyType, propertyName, data)
 
         -- 更新统计信息
         dataStore.stats.totalCount = dataStore.stats.totalCount + 1
+        dataStore.stats.accessLevelCount[accessLevel] = (dataStore.stats.accessLevelCount[accessLevel] or 0) + 1
         dataStore.stats.typeCount[propertyType] = (dataStore.stats.typeCount[propertyType] or 0) + 1
     else
         -- 更新现有属性：保留创建时间，更新修改时间
-        local existingData = dataStore.data[object][propertyType][propertyName]
+        local existingData = dataStore.data[object][accessLevel][propertyType][propertyName]
         existingData.value = data
         existingData.updatedAt = currentTime
     end
@@ -516,19 +520,21 @@ end
 
 --- 从存储获取数据
 ---@param object string 对象ID
+---@param accessLevel string 访问级别
 ---@param propertyType string 属性类型
 ---@param propertyName string 属性名称
 ---@return any? data 属性值
 ---@return string? error 错误信息
-local function swiftDBGet(object, propertyType, propertyName)
+local function swiftDBGet(object, accessLevel, propertyType, propertyName)
     -- 检查数据是否存在
     if dataStore.data[object] == nil or
-        dataStore.data[object][propertyType] == nil or
-        dataStore.data[object][propertyType][propertyName] == nil then
+        dataStore.data[object][accessLevel] == nil or
+        dataStore.data[object][accessLevel][propertyType] == nil or
+        dataStore.data[object][accessLevel][propertyType][propertyName] == nil then
         return nil, "属性不存在"
     end
 
-    local propertyData = dataStore.data[object][propertyType][propertyName]
+    local propertyData = dataStore.data[object][accessLevel][propertyType][propertyName]
 
     -- 返回纯值，屏蔽元数据
     return propertyData.value
@@ -536,19 +542,40 @@ end
 
 --- 获取对象的所有属性
 ---@param object string 对象ID
----@return table<string, table<string, any>>? properties 属性表 {propertyType = {propertyName = value}}
+---@param accessLevel string? 访问级别，nil表示获取所有级别的属性
+---@return table<string, table<string, any>>? properties 属性表 {accessLevel = {propertyType = {propertyName = value}}}
 ---@return string? error 错误信息
-local function swiftDBGetAll(object)
+local function swiftDBGetAll(object, accessLevel)
     if not dataStore.data[object] then
         return {}, "对象没有任何属性"
     end
 
     -- 创建一个新表来存储结果，避免直接返回内部数据引用
     local result = {}
-    for propertyType, properties in pairs(dataStore.data[object]) do
-        result[propertyType] = {}
-        for propertyName, propertyData in pairs(properties) do
-            result[propertyType][propertyName] = propertyData.value
+    
+    if accessLevel then
+        -- 获取指定访问级别的属性
+        if not dataStore.data[object][accessLevel] then
+            return {}, "对象没有该访问级别的属性"
+        end
+        
+        result[accessLevel] = {}
+        for propertyType, properties in pairs(dataStore.data[object][accessLevel]) do
+            result[accessLevel][propertyType] = {}
+            for propertyName, propertyData in pairs(properties) do
+                result[accessLevel][propertyType][propertyName] = propertyData.value
+            end
+        end
+    else
+        -- 获取所有访问级别的属性
+        for aLevel, aLevelData in pairs(dataStore.data[object]) do
+            result[aLevel] = {}
+            for propertyType, properties in pairs(aLevelData) do
+                result[aLevel][propertyType] = {}
+                for propertyName, propertyData in pairs(properties) do
+                    result[aLevel][propertyType][propertyName] = propertyData.value
+                end
+            end
         end
     end
 
@@ -557,17 +584,18 @@ end
 
 --- 获取对象特定类型的所有属性
 ---@param object string 对象ID
+---@param accessLevel string 访问级别
 ---@param propertyType string 属性类型
 ---@return table<string, any>? properties 属性表 {propertyName = value}
 ---@return string? error 错误信息
-local function swiftDBGetByType(object, propertyType)
-    if not dataStore.data[object] or not dataStore.data[object][propertyType] then
-        return {}, "对象没有该类型的属性"
+local function swiftDBGetByType(object, accessLevel, propertyType)
+    if not dataStore.data[object] or not dataStore.data[object][accessLevel] or not dataStore.data[object][accessLevel][propertyType] then
+        return {}, "对象没有该访问级别或类型的属性"
     end
 
     -- 创建一个新表来存储结果，避免直接返回内部数据引用
     local result = {}
-    for propertyName, propertyData in pairs(dataStore.data[object][propertyType]) do
+    for propertyName, propertyData in pairs(dataStore.data[object][accessLevel][propertyType]) do
         result[propertyName] = propertyData.value
     end
 
@@ -576,41 +604,49 @@ end
 
 --- 检查属性是否存在
 ---@param object string 对象ID
+---@param accessLevel string 访问级别
 ---@param propertyType string 属性类型
 ---@param propertyName string 属性名称
 ---@return boolean exists 是否存在
-local function swiftDBExists(object, propertyType, propertyName)
+local function swiftDBExists(object, accessLevel, propertyType, propertyName)
     return dataStore.data[object] ~= nil and
-        dataStore.data[object][propertyType] ~= nil and
-        dataStore.data[object][propertyType][propertyName] ~= nil
+        dataStore.data[object][accessLevel] ~= nil and
+        dataStore.data[object][accessLevel][propertyType] ~= nil and
+        dataStore.data[object][accessLevel][propertyType][propertyName] ~= nil
 end
 
 --- 删除属性
 ---@param object string 对象ID
+---@param accessLevel string 访问级别
 ---@param propertyType string 属性类型
 ---@param propertyName string 属性名称
 ---@return boolean success 是否成功
 ---@return string? error 错误信息
-local function swiftDBDelete(object, propertyType, propertyName)
+local function swiftDBDelete(object, accessLevel, propertyType, propertyName)
     -- 检查数据是否存在
     if dataStore.data[object] == nil or
-        dataStore.data[object][propertyType] == nil or
-        dataStore.data[object][propertyType][propertyName] == nil then
+        dataStore.data[object][accessLevel] == nil or
+        dataStore.data[object][accessLevel][propertyType] == nil or
+        dataStore.data[object][accessLevel][propertyType][propertyName] == nil then
         return false, "属性不存在"
     end
 
     -- 更新统计信息
     dataStore.stats.totalCount = dataStore.stats.totalCount - 1
-    dataStore.stats.typeCount[propertyType] = dataStore.stats.typeCount[propertyType] - 1
+    dataStore.stats.accessLevelCount[accessLevel] = (dataStore.stats.accessLevelCount[accessLevel] or 0) - 1
+    dataStore.stats.typeCount[propertyType] = (dataStore.stats.typeCount[propertyType] or 0) - 1
 
     -- 删除属性
-    dataStore.data[object][propertyType][propertyName] = nil
+    dataStore.data[object][accessLevel][propertyType][propertyName] = nil
 
     -- 清理空表
-    if next(dataStore.data[object][propertyType]) == nil then
-        dataStore.data[object][propertyType] = nil
-        if next(dataStore.data[object]) == nil then
-            dataStore.data[object] = nil
+    if next(dataStore.data[object][accessLevel][propertyType]) == nil then
+        dataStore.data[object][accessLevel][propertyType] = nil
+        if next(dataStore.data[object][accessLevel]) == nil then
+            dataStore.data[object][accessLevel] = nil
+            if next(dataStore.data[object]) == nil then
+                dataStore.data[object] = nil
+            end
         end
     end
 
@@ -619,39 +655,66 @@ end
 
 --- 清理对象属性
 ---@param object string 对象ID
+---@param accessLevel string? 访问级别，nil表示清理所有级别
 ---@param propertyType string? 属性类型，nil表示清理所有类型
 ---@return boolean success 是否成功
 ---@return string? error 错误信息
-local function swiftDBClear(object, propertyType)
+local function swiftDBClear(object, accessLevel, propertyType)
     if not dataStore.data[object] then
         return false, "对象不存在"
     end
 
-    if propertyType then
-        -- 删除指定类型的所有属性
-        if dataStore.data[object][propertyType] then
+    if accessLevel and propertyType then
+        -- 删除指定访问级别和类型的所有属性
+        if dataStore.data[object][accessLevel] and dataStore.data[object][accessLevel][propertyType] then
             local count = 0
-            for _ in pairs(dataStore.data[object][propertyType]) do
+            for _ in pairs(dataStore.data[object][accessLevel][propertyType]) do
                 count = count + 1
             end
             dataStore.stats.totalCount = dataStore.stats.totalCount - count
+            dataStore.stats.accessLevelCount[accessLevel] = (dataStore.stats.accessLevelCount[accessLevel] or 0) - count
             dataStore.stats.typeCount[propertyType] = (dataStore.stats.typeCount[propertyType] or 0) - count
-            dataStore.data[object][propertyType] = nil
+            dataStore.data[object][accessLevel][propertyType] = nil
 
-            -- 如果对象没有其他属性类型，清理对象
+            -- 清理空表
+            if next(dataStore.data[object][accessLevel]) == nil then
+                dataStore.data[object][accessLevel] = nil
+            end
+            if next(dataStore.data[object]) == nil then
+                dataStore.data[object] = nil
+            end
+        end
+    elseif accessLevel then
+        -- 删除指定访问级别的所有属性
+        if dataStore.data[object][accessLevel] then
+            for pType, properties in pairs(dataStore.data[object][accessLevel]) do
+                local count = 0
+                for _ in pairs(properties) do
+                    count = count + 1
+                end
+                dataStore.stats.totalCount = dataStore.stats.totalCount - count
+                dataStore.stats.accessLevelCount[accessLevel] = (dataStore.stats.accessLevelCount[accessLevel] or 0) - count
+                dataStore.stats.typeCount[pType] = (dataStore.stats.typeCount[pType] or 0) - count
+            end
+            dataStore.data[object][accessLevel] = nil
+
+            -- 如果对象没有其他访问级别，清理对象
             if next(dataStore.data[object]) == nil then
                 dataStore.data[object] = nil
             end
         end
     else
-        -- 删除所有类型的属性
-        for pType, properties in pairs(dataStore.data[object]) do
-            local count = 0
-            for _ in pairs(properties) do
-                count = count + 1
+        -- 删除所有访问级别的所有属性
+        for aLevel, aLevelData in pairs(dataStore.data[object]) do
+            for pType, properties in pairs(aLevelData) do
+                local count = 0
+                for _ in pairs(properties) do
+                    count = count + 1
+                end
+                dataStore.stats.totalCount = dataStore.stats.totalCount - count
+                dataStore.stats.accessLevelCount[aLevel] = (dataStore.stats.accessLevelCount[aLevel] or 0) - count
+                dataStore.stats.typeCount[pType] = (dataStore.stats.typeCount[pType] or 0) - count
             end
-            dataStore.stats.totalCount = dataStore.stats.totalCount - count
-            dataStore.stats.typeCount[pType] = (dataStore.stats.typeCount[pType] or 0) - count
         end
         dataStore.data[object] = nil
     end
@@ -661,15 +724,17 @@ end
 
 --- 获取属性的完整数据结构（包括元数据）
 ---@param object string 对象ID
+---@param accessLevel string 访问级别
 ---@param propertyType string 属性类型
 ---@param propertyName string 属性名称
 ---@return table? propertyData 完整属性数据 {value, createdAt, updatedAt}
 ---@return string? error 错误信息
-local function swiftDBGetPropertyData(object, propertyType, propertyName)
+local function swiftDBGetPropertyData(object, accessLevel, propertyType, propertyName)
     -- 检查数据是否存在
     local propertyData = dataStore.data[object] and
-        dataStore.data[object][propertyType] and
-        dataStore.data[object][propertyType][propertyName]
+        dataStore.data[object][accessLevel] and
+        dataStore.data[object][accessLevel][propertyType] and
+        dataStore.data[object][accessLevel][propertyType][propertyName]
 
     if not propertyData then
         return nil, "属性不存在"
@@ -688,6 +753,7 @@ end
 local function swiftDBGetStats()
     return {
         totalCount = dataStore.stats.totalCount,
+        accessLevelCount = dataStore.stats.accessLevelCount,
         typeCount = dataStore.stats.typeCount,
     }
 end
@@ -839,7 +905,7 @@ end
 ---@param propertyType SupportType | string
 ---@param propertyName string
 ---@param data any
----@param accessLevel string?
+---@param accessLevel string? 访问级别，默认为Public
 ---@return boolean success 是否成功
 ---@return string? error 错误信息
 function UDK_Property.SetProperty(object, propertyType, propertyName, data, accessLevel)
@@ -863,10 +929,10 @@ function UDK_Property.SetProperty(object, propertyType, propertyName, data, acce
     end
 
     -- 检查是否是新属性（用于网络同步）
-    local isNewProperty = not swiftDBExists(normalizeID, propertyType, propertyName)
+    local isNewProperty = not swiftDBExists(normalizeID, accessLevel, propertyType, propertyName)
 
     -- 使用SwiftDB存储数据
-    local success, dbError = swiftDBSet(normalizeID, propertyType, propertyName, data)
+    local success, dbError = swiftDBSet(normalizeID, accessLevel, propertyType, propertyName, data)
     if not success then
         return false, dbError
     end
@@ -912,7 +978,7 @@ function UDK_Property.SetBatchProperties(object, properties)
     -- 所有属性验证通过后，开始设置
     for propertyType, props in pairs(properties) do
         for propertyName, value in pairs(props) do
-            local success, error = UDK_Property.SetProperty(object, propertyType, propertyName, value)
+            local success, error = UDK_Property.SetProperty(object, propertyType, propertyName, value, UDK_Property.AccessLevel.Public)
             if not success then
                 return false, string.format("设置属性失败 [%s.%s]: %s", propertyType, propertyName, error)
             end
@@ -928,32 +994,47 @@ end
 ---@param object string | number | {id: string | number}
 ---@param propertyType SupportType | string
 ---@param propertyName string
+---@param accessLevel string? 访问级别，默认为Public
 ---@return any? data 获取到的属性值
 ---@return string? error 错误信息
-function UDK_Property.GetProperty(object, propertyType, propertyName)
+function UDK_Property.GetProperty(object, propertyType, propertyName, accessLevel)
     local normalizeID, error = validatePropertyParams(object, propertyType, propertyName, nil, "get")
     if not normalizeID then
         return nil, error
     end
 
+    -- 默认为公开
+    accessLevel = accessLevel or UDK_Property.AccessLevel.Public
+
+    -- 验证访问级别
+    if not UDK_Property.AccessLevel[accessLevel] then
+        return nil, "无效的访问级别: " .. tostring(accessLevel)
+    end
+
     -- 使用SwiftDB获取数据
-    return swiftDBGet(normalizeID, propertyType, propertyName)
+    return swiftDBGet(normalizeID, accessLevel, propertyType, propertyName)
 end
 
 ---|📘- 获取对象的所有属性
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
 ---@param object string | number | {id: string | number}
----@return table<string, table<string, any>>? properties 属性表 {propertyType = {propertyName = value}}
+---@param accessLevel string? 访问级别，nil表示获取所有级别的属性，默认为nil
+---@return table<string, table<string, any>>? properties 属性表 {accessLevel = {propertyType = {propertyName = value}}}
 ---@return string? error 错误信息
-function UDK_Property.GetAllProperties(object)
+function UDK_Property.GetAllProperties(object, accessLevel)
     local normalizeID, error = normalizeObjectID(object)
     if not normalizeID then
         return nil, error
     end
 
+    -- 如果指定了访问级别，验证其有效性
+    if accessLevel and not UDK_Property.AccessLevel[accessLevel] then
+        return nil, "无效的访问级别: " .. tostring(accessLevel)
+    end
+
     -- 使用SwiftDB获取所有属性
-    return swiftDBGetAll(normalizeID)
+    return swiftDBGetAll(normalizeID, accessLevel)
 end
 
 ---|📘- 获取属性类型信息
@@ -962,15 +1043,24 @@ end
 ---@param object string | number | {id: string | number}
 ---@param propertyType SupportType | string 属性类型
 ---@param propertyName string 属性名称
+---@param accessLevel string? 访问级别，默认为Public
 ---@return table? data 类型信息 {type: string, isArray: boolean, elementType?: string}
 ---@return string? error 错误信息
-function UDK_Property.GetPropertyTypeInfo(object, propertyType, propertyName)
+function UDK_Property.GetPropertyTypeInfo(object, propertyType, propertyName, accessLevel)
     local normalizeID, error = validatePropertyParams(object, propertyType, propertyName, nil, "get")
     if not normalizeID then
         return nil, error
     end
 
-    local value, getError = swiftDBGet(normalizeID, propertyType, propertyName)
+    -- 默认为公开
+    accessLevel = accessLevel or UDK_Property.AccessLevel.Public
+
+    -- 验证访问级别
+    if not UDK_Property.AccessLevel[accessLevel] then
+        return nil, "无效的访问级别: " .. tostring(accessLevel)
+    end
+
+    local value, getError = swiftDBGet(normalizeID, accessLevel, propertyType, propertyName)
     if getError then
         return nil, getError
     end
@@ -1002,9 +1092,10 @@ end
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
 ---@param object string | number | {id: string | number}
 ---@param propertyType SupportType | string 属性类型
+---@param accessLevel string? 访问级别，默认为Public
 ---@return table<string, any>? properties 属性表 {propertyName = value}
 ---@return string? error 错误信息
-function UDK_Property.GetPropertiesByType(object, propertyType)
+function UDK_Property.GetPropertiesByType(object, propertyType, accessLevel)
     local normalizeID, error = normalizeObjectID(object)
     if not normalizeID then
         return nil, error
@@ -1014,8 +1105,16 @@ function UDK_Property.GetPropertiesByType(object, propertyType)
         return nil, "属性类型不能为nil"
     end
 
+    -- 默认为公开
+    accessLevel = accessLevel or UDK_Property.AccessLevel.Public
+
+    -- 验证访问级别
+    if not UDK_Property.AccessLevel[accessLevel] then
+        return nil, "无效的访问级别: " .. tostring(accessLevel)
+    end
+
     -- 使用SwiftDB获取特定类型的属性
-    return swiftDBGetByType(normalizeID, propertyType)
+    return swiftDBGetByType(normalizeID, accessLevel, propertyType)
 end
 
 ---|📘- 删除属性值
@@ -1024,16 +1123,25 @@ end
 ---@param object string | number | {id: string | number}
 ---@param propertyType SupportType | string
 ---@param propertyName string
+---@param accessLevel string? 访问级别，默认为Public
 ---@return boolean success 是否成功
 ---@return string? error 错误信息
-function UDK_Property.DeleteProperty(object, propertyType, propertyName)
+function UDK_Property.DeleteProperty(object, propertyType, propertyName, accessLevel)
     local normalizeID, error = normalizeObjectID(object)
     if not normalizeID then
         return false, error
     end
 
+    -- 默认为公开
+    accessLevel = accessLevel or UDK_Property.AccessLevel.Public
+
+    -- 验证访问级别
+    if not UDK_Property.AccessLevel[accessLevel] then
+        return false, "无效的访问级别: " .. tostring(accessLevel)
+    end
+
     -- 使用SwiftDB删除属性
-    return swiftDBDelete(normalizeID, propertyType, propertyName)
+    return swiftDBDelete(normalizeID, accessLevel, propertyType, propertyName)
 end
 
 ---|📘- 删除对象下面所有对应类型的属性
@@ -1041,16 +1149,25 @@ end
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
 ---@param object string | number | {id: string | number}
 ---@param propertyType SupportType | string
+---@param accessLevel string? 访问级别，默认为Public
 ---@return boolean success 是否成功
 ---@return string? error 错误信息
-function UDK_Property.ClearProperty(object, propertyType)
+function UDK_Property.ClearProperty(object, propertyType, accessLevel)
     local normalizeID, error = normalizeObjectID(object)
     if not normalizeID then
         return false, error
     end
 
+    -- 默认为公开
+    accessLevel = accessLevel or UDK_Property.AccessLevel.Public
+
+    -- 验证访问级别
+    if not UDK_Property.AccessLevel[accessLevel] then
+        return false, "无效的访问级别: " .. tostring(accessLevel)
+    end
+
     -- 使用SwiftDB清理属性
-    return swiftDBClear(normalizeID, propertyType)
+    return swiftDBClear(normalizeID, accessLevel, propertyType)
 end
 
 ---|📘- 获取统计数据
@@ -1092,15 +1209,24 @@ end
 ---@param object string | number | {id: string | number}
 ---@param propertyType SupportType | string
 ---@param propertyName string 属性名称
+---@param accessLevel string? 访问级别，默认为Public
 ---@return boolean exists 是否存在
-function UDK_Property.CheckPropertyHasExist(object, propertyType, propertyName)
+function UDK_Property.CheckPropertyHasExist(object, propertyType, propertyName, accessLevel)
     local normalizeID = normalizeObjectID(object)
     if not normalizeID or not propertyType or not propertyName then
         return false
     end
 
+    -- 默认为公开
+    accessLevel = accessLevel or UDK_Property.AccessLevel.Public
+
+    -- 验证访问级别
+    if not UDK_Property.AccessLevel[accessLevel] then
+        return false
+    end
+
     -- 使用SwiftDB检查属性是否存在
-    return swiftDBExists(normalizeID, propertyType, propertyName)
+    return swiftDBExists(normalizeID, accessLevel, propertyType, propertyName)
 end
 
 ---|📘- 获取属性的完整元数据
@@ -1109,16 +1235,25 @@ end
 ---@param object string | number | {id: string | number}
 ---@param propertyType SupportType | string
 ---@param propertyName string 属性名称
+---@param accessLevel string? 访问级别，默认为Public
 ---@return table? propertyData 属性完整数据 {value, createdAt, updatedAt}
 ---@return string? error 错误信息
-function UDK_Property.GetPropertyData(object, propertyType, propertyName)
+function UDK_Property.GetPropertyData(object, propertyType, propertyName, accessLevel)
     local normalizeID, error = validatePropertyParams(object, propertyType, propertyName, nil, "get")
     if not normalizeID then
         return nil, error
     end
 
+    -- 默认为公开
+    accessLevel = accessLevel or UDK_Property.AccessLevel.Public
+
+    -- 验证访问级别
+    if not UDK_Property.AccessLevel[accessLevel] then
+        return nil, "无效的访问级别: " .. tostring(accessLevel)
+    end
+
     -- 使用SwiftDB获取完整属性数据
-    return swiftDBGetPropertyData(normalizeID, propertyType, propertyName)
+    return swiftDBGetPropertyData(normalizeID, accessLevel, propertyType, propertyName)
 end
 
 return UDK_Property
