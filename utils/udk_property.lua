@@ -76,8 +76,8 @@ UDK_Property.SyncConf = {
         Update = "Update",
         Delete = "Delete",
         Clear = "Clear",
-        Get = "Get",
-        ForceSync = "ForceSync"
+        Get = "Get",            -- WIP
+        ForceSync = "ForceSync" -- WIP
     },
     Status = {
         StandaloneDebug = true,    -- 编辑器和单机环境Debug测试使用
@@ -490,6 +490,7 @@ local function crc32(data)
     if dataType == "string" then
         local len = #data
         for i = 1, len do
+            ---@diagnostic disable-next-line: param-type-mismatch
             local byte = data:byte(i)
             local index = (crc ~ byte) & 0xFF
             crc = (crc >> 8) ~ crc_table[index]
@@ -672,6 +673,34 @@ local function swiftDBSet(object, accessLevel, propertyType, propertyName, data)
         local existingData = dataStore.data[object][accessLevel][propertyType][propertyName]
         existingData.value = data
         existingData.updatedAt = currentTime
+    end
+
+    return true
+end
+
+--- 批量设置数据到存储
+---@param object string 对象ID
+---@param accessLevel string 访问级别
+---@param properties table<string, table<string, any>> 属性表 {propertyType = {propertyName = value}}
+---@return boolean success 是否成功
+---@return string? error 错误信息
+local function swiftDBSetBatch(object, accessLevel, properties)
+    if not properties or type(properties) ~= "table" then
+        return false, "属性表不能为nil且必须是table类型"
+    end
+
+    -- 遍历所有属性类型和属性名，使用 swiftDBSet 进行批量设置
+    for propertyType, typeData in pairs(properties) do
+        if type(typeData) ~= "table" then
+            return false, string.format("属性类型 %s 的值必须是table类型", propertyType)
+        end
+
+        for propertyName, value in pairs(typeData) do
+            local success, error = swiftDBSet(object, accessLevel, propertyType, propertyName, value)
+            if not success then
+                return false, string.format("设置属性失败 [%s.%s]: %s", propertyType, propertyName, error or "未知错误")
+            end
+        end
     end
 
     return true
@@ -940,6 +969,12 @@ local function networkProtocolVersionCheck(protocolVersion)
         return false
     end
 
+    -- 检查版本号格式（应该是一个有效的语义版本号）
+    if type(protocolVersion) ~= "string" or not protocolVersion:match("^%d+%.%d+%.%d+$") then
+        Log:PrintError(createFormatLog("NetProtocolCheck: 协议版本格式无效: " .. tostring(protocolVersion)))
+        return false
+    end
+
     -- 获取期望的协议版本
     local expectedVersion = UDK_Property.SyncConf.Status.ProtocolVersion
 
@@ -1003,15 +1038,68 @@ local function networkSyncEventHandle(reqMsg)
 
     -- 请求处理
     if syncReq ~= nil then
+        -- 验证必需字段
+        if not syncReq.object or not syncReq.accessLevel then
+            Log:PrintError(createFormatLog("NetSyncHandle: 同步请求缺少必需字段"))
+            return
+        end
+
+        -- 验证访问级别
+        if not UDK_Property.AccessLevel[syncReq.accessLevel] then
+            Log:PrintError(createFormatLog("NetSyncHandle: 无效的访问级别: " .. tostring(syncReq.accessLevel)))
+            return
+        end
+
         local crud = UDK_Property.SyncConf.CRUD
         -- 创建/更新
         if syncReq.reqType == crud.Create or syncReq.reqType == crud.Update then
+            -- 验证字段完整性
+            if not syncReq.type or not syncReq.name or syncReq.data == nil then
+                Log:PrintError(createFormatLog("NetSyncHandle: 创建/更新请求缺少必需字段"))
+                return
+            end
             swiftDBSet(syncReq.object, syncReq.accessLevel, syncReq.type, syncReq.name, syncReq.data)
-            --UDK_Property.SetProperty(syncReq.object, syncReq.type, syncReq.name, syncReq.data, nil, true)
             if UDK_Property.SyncConf.Status.DebugPrint then
                 print(string.format("已接收并应用%s权威数据，共 %d 个属性，名称 %s",
                     event.envName or "Unknown", dataStore.stats.totalCount, tostring(syncReq.name)))
             end
+            -- 常规删除
+        elseif syncReq.reqType == crud.Delete then
+            -- 验证字段完整性
+            if not syncReq.type or not syncReq.name then
+                Log:PrintError(createFormatLog("NetSyncHandle: 删除请求缺少必需字段"))
+                return
+            end
+            swiftDBDelete(syncReq.object, syncReq.accessLevel, syncReq.type, syncReq.name)
+            -- 批量设置
+        elseif syncReq.reqType == crud.Clear then
+            -- 验证字段完整性
+            if not syncReq.type then
+                Log:PrintError(createFormatLog("NetSyncHandle: 清理请求缺少必需字段"))
+                return
+            end
+            swiftDBClear(syncReq.object, syncReq.accessLevel, syncReq.type)
+        elseif syncReq.reqType == crud.SetBatch then
+            -- 验证字段完整性
+            if not syncReq.data or type(syncReq.data) ~= "table" then
+                Log:PrintError(createFormatLog("NetSyncHandle: 批量设置请求数据无效"))
+                return
+            end
+            local success, error = swiftDBSetBatch(syncReq.object, syncReq.accessLevel, syncReq.data)
+            if not success and UDK_Property.SyncConf.Status.DebugPrint then
+                print(string.format("批量设置%s权威数据失败: %s", event.envName or "Unknown", error or "未知错误"))
+            elseif UDK_Property.SyncConf.Status.DebugPrint then
+                local propertyCount = 0
+                for _, typeData in pairs(syncReq.data) do
+                    for _ in pairs(typeData) do
+                        propertyCount = propertyCount + 1
+                    end
+                end
+                print(string.format("已接收并应用%s批量权威数据，共 %d 个属性",
+                    event.envName or "Unknown", propertyCount))
+            end
+        else
+            Log:PrintError(createFormatLog("NetSyncHandle: 未知的请求类型: " .. tostring(syncReq.reqType)))
         end
     end
 end
@@ -1044,21 +1132,60 @@ local function networkSyncMessageBuild(msgStructure, dataStructure)
 end
 
 --- 网络RPC消息发送（常规RPC请求）
+--- @param reqType string 请求类型
+--- @param object string 对象名称
+--- @param propertyType string 属性类型
+--- @param propertyName string 属性名称
+--- @param propertyValue any 属性值
+--- @param accessLevel string 属性访问级别
+--- @return boolean isSend 是否成功发送
+--- @return string? error 错误信息
 local function networkRpcMessageSender(reqType, object, propertyType, propertyName, propertyValue, accessLevel)
     -- 检查是否处于单元测试模式
     if UDK_Property.SyncConf.Status.UnitTestMode then
-        return false
+        return false, "单元测试模式"
     end
 
     -- 只有Public级别的属性才需要网络同步
     if accessLevel ~= UDK_Property.AccessLevel.Public then
-        return true -- 返回true表示操作成功，只是不需要同步
+        return true, "非Public级别，跳过网络同步"
     end
 
     -- 参数验证
     if not reqType then
-        Log:PrintError(createFormatLog("NetRpcSend: 缺少请求类型参数"))
-        return false
+        return false, "缺少请求类型参数"
+    end
+
+    if not object then
+        return false, "缺少对象名称参数"
+    end
+
+    -- 验证请求类型
+    local crud = UDK_Property.SyncConf.CRUD
+    local validReqTypes = {
+        [crud.Create] = true,
+        [crud.Update] = true,
+        [crud.Delete] = true,
+        [crud.Clear] = true,
+        [crud.SetBatch] = true
+    }
+    if not validReqTypes[reqType] then
+        return false, "无效的请求类型: " .. tostring(reqType)
+    end
+
+    -- 批量操作的特殊验证
+    if reqType == crud.SetBatch then
+        if not propertyValue or type(propertyValue) ~= "table" then
+            return false, "批量操作需要有效的属性表"
+        end
+    else
+        -- 非批量操作需要验证基本字段
+        if not propertyType then
+            return false, "缺少属性类型参数"
+        end
+        if not propertyName then
+            return false, "缺少属性名称参数"
+        end
     end
 
     -- 获取当前环境信息并构建数据结构
@@ -1066,8 +1193,8 @@ local function networkRpcMessageSender(reqType, object, propertyType, propertyNa
     local envType = UDK_Property.SyncConf.EnvType
     local dataStructure = {
         Object = object,
-        Type = propertyType,
-        Name = propertyName,
+        Type = propertyType or "",
+        Name = propertyName or "",
         Data = propertyValue,
         AccessLevel = accessLevel
     }
@@ -1108,7 +1235,7 @@ local function networkRpcMessageSender(reqType, object, propertyType, propertyNa
         return true
     end
 
-    return false
+    return false, "未知环境类型"
 end
 
 --- 网络RPC消息处理
@@ -1147,8 +1274,8 @@ local function networkRpcMessageHandler()
         if reqValid then
             networkSyncEventHandle(msg)
         else
-            Log:PrintWarning(string.format("收到来自%s的请求，但请求已过期: %s (%s, %s)",
-                text, event.reqID, event.reqTimestamp, syncReq.reqType))
+            Log:PrintWarning(string.format("收到来自%s的请求，但请求已过期: %s (%s, %s) (%s)",
+                text, event.reqID, event.reqTimestamp, syncReq.reqType, errorMsg))
         end
     end
 end
@@ -1217,7 +1344,7 @@ function UDK_Property.SetProperty(object, propertyType, propertyName, data, acce
     end
 
     -- 发送网络RPC消息
-    local crudType = isNewProperty and "Create" or "Update"
+    local crudType = isNewProperty and UDK_Property.SyncConf.CRUD.Create or UDK_Property.SyncConf.CRUD.Update
     networkRpcMessageSender(crudType, normalizeID, propertyType, propertyName, data, accessLevel)
 
     return true
@@ -1258,15 +1385,15 @@ function UDK_Property.SetBatchProperties(object, properties, accessLevel)
 
     accessLevel = accessLevel or UDK_Property.AccessLevel.Public
 
-    -- 所有属性验证通过后，开始设置
-    for propertyType, props in pairs(properties) do
-        for propertyName, value in pairs(props) do
-            success, errorMsg = swiftDBSet(normalizeID, accessLevel, propertyType, propertyName, value)
-            if not success then
-                return false, string.format("设置属性失败 [%s.%s]: %s", propertyType, propertyName, errorMsg)
-            end
-        end
+    -- 使用SwiftDB的批量设置功能
+    success, errorMsg = swiftDBSetBatch(normalizeID, accessLevel, properties)
+    if not success then
+        return false, errorMsg
     end
+
+    local crudType = UDK_Property.SyncConf.CRUD.SetBatch
+    -- 发送网络RPC消息（批量操作）
+    networkRpcMessageSender(crudType, normalizeID, "", "", properties, accessLevel)
 
     return true
 end
@@ -1423,6 +1550,9 @@ function UDK_Property.DeleteProperty(object, propertyType, propertyName, accessL
         return false, "无效的访问级别: " .. tostring(accessLevel)
     end
 
+    local crudType = UDK_Property.SyncConf.CRUD.Delete
+    networkRpcMessageSender(crudType, normalizeID, propertyType, propertyName, "", accessLevel)
+
     -- 使用SwiftDB删除属性
     return swiftDBDelete(normalizeID, accessLevel, propertyType, propertyName)
 end
@@ -1448,6 +1578,9 @@ function UDK_Property.ClearProperty(object, propertyType, accessLevel)
     if not UDK_Property.AccessLevel[accessLevel] then
         return false, "无效的访问级别: " .. tostring(accessLevel)
     end
+
+    local crudType = UDK_Property.SyncConf.CRUD.Clear
+    networkRpcMessageSender(crudType, normalizeID, propertyType, "", "", accessLevel)
 
     -- 使用SwiftDB清理属性
     return swiftDBClear(normalizeID, accessLevel, propertyType)
