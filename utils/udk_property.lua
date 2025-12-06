@@ -853,7 +853,7 @@ local function swiftDBClear(object, accessLevel, propertyType)
                 end
                 dataStore.stats.totalCount = dataStore.stats.totalCount - count
                 dataStore.stats.accessLevelCount[accessLevel] = (dataStore.stats.accessLevelCount[accessLevel] or 0) -
-                count
+                    count
                 dataStore.stats.typeCount[pType] = (dataStore.stats.typeCount[pType] or 0) - count
             end
             dataStore.data[object][accessLevel] = nil
@@ -958,9 +958,62 @@ local function networkProtocolVersionCheck(protocolVersion)
     return true
 end
 
+--- 网络同步CRC32生成
+local function networkSyncCRC32Generate(reqMsg)
+    local checksumData = {
+        reqInfo = {
+            reqID = reqMsg.event.reqID,
+            reqTimestamp = reqMsg.event.reqTimestamp,
+        },
+        checkData = reqMsg.dataSyncReq,
+    }
+    local checkSum = crc32(checksumData)
+    return checkSum
+end
+
 --- 网络同步请求处理
 local function networkSyncEventHandle(reqMsg)
-    -- body
+    if reqMsg == nil then
+        return
+    end
+
+    local event = reqMsg.event
+    local syncReq = reqMsg.dataSyncReq
+
+    -- 协议版本检查
+    if not networkProtocolVersionCheck(event.protocolVersion) then
+        Log:PrintError(createFormatLog("NetSyncHandle: 消息处理中止: 协议版本检查失败"))
+        return
+    end
+
+    -- 检查是否存在 CRC32 字段
+    if event.crc32 == nil then
+        Log:PrintError(createFormatLog("NetSyncHandle: 接收到的消息缺少crc32字段，请求无效"))
+        return
+    end
+
+    -- CRC32 校验
+    local receivedCRC32 = event.crc32
+    local calculatedCRC32 = networkSyncCRC32Generate(reqMsg)
+
+    if receivedCRC32 ~= calculatedCRC32 then
+        Log:PrintError(createFormatLog("NetSyncHandle: CRC32校验失败: 期望 " .. calculatedCRC32 .. ", 实际 " .. receivedCRC32))
+        return
+    end
+
+    -- 请求处理
+    if syncReq ~= nil then
+        local crud = UDK_Property.SyncConf.CRUD
+        -- 创建/更新
+        if syncReq.reqType == crud.Create or syncReq.reqType == crud.Update then
+            swiftDBSet(syncReq.object, syncReq.accessLevel, syncReq.type, syncReq.name, syncReq.data)
+            --UDK_Property.SetProperty(syncReq.object, syncReq.type, syncReq.name, syncReq.data, nil, true)
+            if UDK_Property.SyncConf.Status.DebugPrint then
+                print(string.format("已接收并应用%s权威数据，共 %d 个属性，名称 %s",
+                    event.envName or "Unknown", dataStore.stats.totalCount, tostring(syncReq.name)))
+            end
+        end
+    end
 end
 
 --- 网络同步消息数据包构建
@@ -980,17 +1033,82 @@ local function networkSyncMessageBuild(msgStructure, dataStructure)
             object = dataStructure.Object,
             type = dataStructure.Type,
             name = dataStructure.Name,
-            data = dataStructure.Data
+            data = dataStructure.Data,
+            accessLevel = dataStructure.AccessLevel
         }
     }
+
+    msg.event.crc32 = networkSyncCRC32Generate(msg)
+
+    return msg
 end
 
---- 网络RPC消息发送
-local function networkRpcMessageSender(reqType, object, propertyType, propertyName, propertyValue)
+--- 网络RPC消息发送（常规RPC请求）
+local function networkRpcMessageSender(reqType, object, propertyType, propertyName, propertyValue, accessLevel)
     -- 检查是否处于单元测试模式
     if UDK_Property.SyncConf.Status.UnitTestMode then
         return false
     end
+
+    -- 只有Public级别的属性才需要网络同步
+    if accessLevel ~= UDK_Property.AccessLevel.Public then
+        return true -- 返回true表示操作成功，只是不需要同步
+    end
+
+    -- 参数验证
+    if not reqType then
+        Log:PrintError(createFormatLog("NetRpcSend: 缺少请求类型参数"))
+        return false
+    end
+
+    -- 获取当前环境信息并构建数据结构
+    local envInfo = envCheck()
+    local envType = UDK_Property.SyncConf.EnvType
+    local dataStructure = {
+        Object = object,
+        Type = propertyType,
+        Name = propertyName,
+        Data = propertyValue,
+        AccessLevel = accessLevel
+    }
+
+    -- 服务器环境
+    if envInfo.envID == envType.Server.ID or envInfo.isStandalone then
+        local msgStructure = {
+            MsgID = UDK_Property.NetMsg.ServerSync,
+            EventType = UDK_Property.SyncConf.Type.ServerSync,
+            RequestID = nanoIDGenerate(),
+            RequestTimestamp = getTimestamp(),
+            EnvType = envInfo.envID,
+            EnvName = envInfo.envName,
+            ReqType = reqType,
+            ProtocolVersion = UDK_Property.SyncConf.Status.ProtocolVersion
+        }
+
+        local msg = networkSyncMessageBuild(msgStructure, dataStructure)
+        System:SendToAllClients(msgStructure.MsgID, msg)
+        return true
+    end
+
+    -- 客户端环境
+    if envInfo.envID == envType.Client.ID then
+        local msgStructure = {
+            MsgID = UDK_Property.NetMsg.ClientSync,
+            EventType = UDK_Property.SyncConf.Type.ClientSync,
+            RequestID = nanoIDGenerate(),
+            RequestTimestamp = getTimestamp(),
+            EnvType = envInfo.envID,
+            EnvName = envInfo.envName,
+            ReqType = reqType,
+            ProtocolVersion = UDK_Property.SyncConf.Status.ProtocolVersion
+        }
+
+        local msg = networkSyncMessageBuild(msgStructure, dataStructure)
+        System:SendToServer(msgStructure.MsgID, msg)
+        return true
+    end
+
+    return false
 end
 
 --- 网络RPC消息处理
@@ -1100,7 +1218,7 @@ function UDK_Property.SetProperty(object, propertyType, propertyName, data, acce
 
     -- 发送网络RPC消息
     local crudType = isNewProperty and "Create" or "Update"
-    networkRpcMessageSender(crudType, normalizeID, propertyType, propertyName, data)
+    networkRpcMessageSender(crudType, normalizeID, propertyType, propertyName, data, accessLevel)
 
     return true
 end
