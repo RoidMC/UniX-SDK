@@ -15,6 +15,7 @@
 -- * 2025 © RoidMC Studios
 -- ==================================================
 
+---@class UDK.Heartbeat
 local UDK_Heartbeat = {}
 
 -- 心跳包网络消息ID定义
@@ -341,7 +342,7 @@ local function heartbeatInit()
 end
 
 ---|📘- 设置心跳包间隔
----<br>
+---
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-heartbeat/#udkheartbeatsetinterval)
 ---@param interval number 心跳包间隔(秒)
 function UDK_Heartbeat.SetInterval(interval)
@@ -354,9 +355,9 @@ function UDK_Heartbeat.SetInterval(interval)
 end
 
 ---|📘- 设置超时时间
----<br>
+---
 ---| `范围`：`服务端`
----<br>
+---
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-heartbeat/#udkheartbeatsettimeout)
 ---@param timeout number 超时时间(秒)
 function UDK_Heartbeat.SetTimeout(timeout)
@@ -369,9 +370,9 @@ function UDK_Heartbeat.SetTimeout(timeout)
 end
 
 ---|📘- 设置自动发送心跳包
----<br>
+---
 ---| `范围`：`服务端`
----<br>
+---
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-heartbeat/#udkheartbeatsetautosend)
 ---@param autoSend boolean 是否自动发送心跳包
 function UDK_Heartbeat.SetAutoSend(autoSend)
@@ -384,9 +385,9 @@ function UDK_Heartbeat.SetAutoSend(autoSend)
 end
 
 ---|📘- 发送心跳包
----<br>
+---
 ---| `范围`：`服务端`
----<br>
+---
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-heartbeat/#udkheartbeatsend)
 ---@param playerID number? 玩家ID(可选，不填则发送给所有客户端)
 ---@param timeoutCallback function? 超时回调函数(可选)
@@ -457,9 +458,9 @@ function UDK_Heartbeat.Send(playerID, timeoutCallback)
 end
 
 ---|📘- 发送带跟踪的心跳包
----<br>
+---
 ---| `范围`：`服务端`
----<br>
+---
 ---| `说明`：`该API提供带WatchDog的心跳包，用于跟踪玩家是否掉线`
 ---@param playerID number 玩家ID
 ---@param timeoutCallback function? 超时回调函数(可选)
@@ -507,7 +508,7 @@ function UDK_Heartbeat.SendWithTracking(playerID, timeoutCallback, responseCallb
 end
 
 ---|📘- 注册心跳包回调函数
----<br>
+---
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-heartbeat/#udkheartbeatonheartbeat)
 ---@param callback function 心跳包回调函数
 ---@return string callbackId 回调函数ID
@@ -524,7 +525,7 @@ function UDK_Heartbeat.RegisterCallback(callback)
 end
 
 ---|📘- 注销心跳包回调函数
----<br>
+---
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/api/udk-heartbeat/#udkheartbeatoffheartbeat)
 ---@param callbackId string 回调函数ID
 function UDK_Heartbeat.UnRegisterCallback(callbackId)
@@ -537,9 +538,9 @@ function UDK_Heartbeat.UnRegisterCallback(callbackId)
 end
 
 ---|📘- 获取玩家心跳状态
----<br>
+---
 ---| `范围`：`服务端`
----<br>
+---
 ---| `说明`：`获取指定玩家的心跳状态信息`
 ---@param playerID number 玩家ID
 ---@return table 玩家心跳状态信息 {sent=发送次数, received=接收次数, timeout=超时次数, lastSeen=最后响应时间戳, avgResponseTime=平均响应时间(毫秒), health=连接健康度(0-100)}
@@ -592,9 +593,9 @@ function UDK_Heartbeat.GetPlayerStatus(playerID)
 end
 
 ---|📘- 获取心跳统计信息
----<br>
+---
 ---| `范围`：`服务端`
----<br>
+---
 ---| `说明`：`获取心跳包系统的统计信息`
 ---@return table 心跳统计信息 {totalSent=总发送次数, totalReceived=总接收次数, totalTimeout=总超时次数, uptime=运行时间(毫秒), playerCount=监控玩家数量}
 function UDK_Heartbeat.GetStats()
@@ -620,9 +621,9 @@ function UDK_Heartbeat.GetStats()
 end
 
 ---|📘- 重置心跳统计信息
----<br>
+---
 ---| `范围`：`服务端`
----<br>
+---
 ---| `说明`：`重置心跳包系统的统计信息`
 ---@param resetPlayerStats boolean? 是否同时重置玩家统计信息(默认: false)
 function UDK_Heartbeat.ResetStats(resetPlayerStats)

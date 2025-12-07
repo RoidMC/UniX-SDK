@@ -15,6 +15,7 @@
 -- * 2025 © RoidMC Studios
 -- ==================================================
 
+---@class UDK.Animation
 local UDK_Animation = {}
 
 -- 存储每个控件的动画状态
@@ -64,7 +65,8 @@ end
 
 ---|📘- 清理所有动画状态
 function UDK_Animation.CleanupAllAnimations()
-    for id, state in pairs(animationStates) do
+    -- 里面id暂时没用到，改成_
+    for _, state in pairs(animationStates) do
         if state.id then
             local success, err = pcall(function()
                 TimerManager:RemoveTimer(state.id)
@@ -185,30 +187,30 @@ local function createFadeAnimation(id, fadeType, options)
 
             -- 如果是淡出，完成后隐藏控件
             if not isVisible then
-                local success, uiErr = pcall(function()
+                local uiSuccess, uiErr = pcall(function()
                     UI:SetVisible({ id }, false)
                 end)
 
-                if not success then
+                if not uiSuccess then
                     Log:PrintWarning(string.format("[UDK:Animation] 设置控件不可见失败: %s", uiErr))
                 end
             end
 
             -- 执行完成回调
             if type(onComplete) == "function" then
-                local success, cbErr = pcall(onComplete, id)
-                if not success then
+                local cbSuccess, cbErr = pcall(onComplete, id)
+                if not cbSuccess then
                     Log:PrintWarning(string.format("[UDK:Animation] 回调执行失败: %s", cbErr))
                 end
             end
         end
 
         -- 应用透明度
-        local success, transErr = pcall(function()
+        local transSuccess, transErr = pcall(function()
             UI:SetTransparency({ id }, state.transparency)
         end)
 
-        if not success then
+        if not transSuccess then
             Log:PrintWarning(string.format("[UDK:Animation] 设置透明度失败: %s", transErr))
         end
     end)
@@ -219,11 +221,12 @@ local function createFadeAnimation(id, fadeType, options)
     end
 
     -- 创建或更新动画元数据
+    ---@diagnostic disable-next-line: param-type-mismatch
     return createAnimationMeta(id, timerId, initialTransparency)
 end
 
 ---|📘- 动画效果 | 淡入
----<br>
+---
 ---| `范围`：`客户端`
 ---@param id number UI元素ID
 ---@param options table? 可选配置参数
@@ -232,7 +235,7 @@ function UDK_Animation.FadeIn(id, options)
 end
 
 ---|📘- 动画效果 | 淡出
----<br>
+---
 ---| `范围`：`客户端`
 ---@param id number UI元素ID
 ---@param options table? 可选配置参数

@@ -15,6 +15,14 @@
 -- * 2025 © RoidMC Studios
 -- ==================================================
 
+--- UI按钮ActMap支持的回调参数
+---@alias UICallbackActMap
+---| 'Pressed'     # 按钮按下事件
+---| 'Released'    # 按钮弹起事件
+---| 'Moved'       # 当按钮被拖动事件，要在按钮UI打开“允许拖动”
+---| 'Clicked'     # 按钮点击事件（此事件不支持传参X, Y轴数据使用会返回0）
+
+---@class UDK.UI
 local UDK_UI = {}
 
 -- 枚举映射表，仅在Lua调试使用，实际游戏内调用SDK不需要该枚举
@@ -82,14 +90,15 @@ local function AutoButtonHandler(buttonData, event, actMap)
 end
 
 ---|📘- 设置UI可见性
----<br>
+---
 ---| `范围`：`客户端`
+---
 ---| `兼容性`：支持多种调用方式
----<br>
+---
 ---| 用法1（标准）：UDK_UI.SetUIVisibility(showWidgetIDs, hideWidgetIDs)
----<br>
+---
 ---| 用法2（布尔值）：UDK_UI.SetUIVisibility(widgetID, isVisible)
----<br>
+---
 ---| 用法3（传统）：UDK_UI.SetUIVisibility(widgetID) 或 UDK_UI.SetUIVisibility("", widgetID)
 ---@param showWidgetIDs any | any[] 要显示的控件ID列表，或者在布尔值用法中为控件ID
 ---@param hideWidgetIDs any | any[] 要隐藏的控件ID列表，或者在布尔值用法中为布尔值
@@ -153,7 +162,7 @@ function UDK_UI.SetUIVisibility(showWidgetIDs, hideWidgetIDs)
 end
 
 ---|📘- 设置UI控件尺寸
----<br>
+---
 ---| `范围`：`客户端`
 ---@param widgetID any | any[] 要设置文本的控件ID列表
 ---@param newWidth number  要设置的宽度
@@ -170,7 +179,7 @@ function UDK_UI.SetUISize(widgetID, newWidth, newHeight)
 end
 
 ---|📘- 设置UI控件位置
----<br>
+---
 ---| `范围`：`客户端`
 ---@param widgetID any | any[] 要设置文本的控件ID列表
 ---@param newX number  要设置的新坐标X
@@ -187,7 +196,7 @@ function UDK_UI.SetUIPostion(widgetID, newX, newY)
 end
 
 ---|📘- 设置UI控件位置（以锚点为参考）
----<br>
+---
 ---| `范围`：`客户端`
 ---@param widgetID any | any[] 要设置文本的控件ID列表
 ---@param data any 需要变更的数据{X,Y,Left,Right,Bottom,Top}
@@ -203,7 +212,7 @@ function UDK_UI.SetUIPositionByAnchor(widgetID, data)
 end
 
 ---|📘- 设置UI控件不透明度
----<br>
+---
 ---| `范围`：`客户端`
 ---@param widgetID any | any[] 要设置文本的控件ID列表
 ---@param newOpacity number  要设置的不透明度（范围：0-1，使用小数点）
@@ -219,7 +228,7 @@ function UDK_UI.SetUITransparency(widgetID, newOpacity)
 end
 
 ---|📘- 设置UI文本内容
----<br>
+---
 ---| `范围`：`客户端`
 ---@param widgetID any | any[] 要设置文本的控件ID列表
 ---@param content string 要设置的文本内容
@@ -235,7 +244,7 @@ function UDK_UI.SetUIText(widgetID, content)
 end
 
 ---|📘- 设置UI文本颜色
----<br>
+---
 ---| `范围`：`客户端`
 ---@param widgetID any | any[] 要设置文本的控件ID列表
 ---@param hexColor string 要设置的颜色（Hex 颜色码 - 例如：#FFFFFF）
@@ -251,7 +260,7 @@ function UDK_UI.SetUITextColor(widgetID, hexColor)
 end
 
 ---|📘- 设置UI文本大小
----<br>
+---
 ---| `范围`：`客户端`
 ---@param widgetID any | any[] 要设置文本的控件ID列表
 ---@param content number 要设置的大小（范围：15-100）
@@ -267,7 +276,7 @@ function UDK_UI.SetUITextSize(widgetID, content)
 end
 
 ---|📘- 设置UI控件底图
----<br>
+---
 ---| `范围`：`客户端`
 ---@param imageID any 要设置的图片ID
 ---@param widgetID any | any[] 要设置底图的控件ID列表
@@ -283,7 +292,7 @@ function UDK_UI.SetUIImage(widgetID, imageID)
 end
 
 ---|📘- 设置UI控件地图颜色
----<br>
+---
 ---| `范围`：`客户端`
 ---@param hexColor string 要设置的颜色（Hex 颜色码 - 例如：#FFFFFF）
 ---@param widgetID any | any[] 要设置文本的控件ID列表
@@ -299,7 +308,7 @@ function UDK_UI.SetUIImageColor(widgetID, hexColor)
 end
 
 ---|📘- 设置UI控件进度条最大值
----<br>
+---
 ---| `范围`：`客户端`
 ---@param widgetID any 要设置的控件ID
 ---@param maxValue number 要设置的最大值（范围：0-100）
@@ -315,7 +324,7 @@ function UDK_UI.SetUIProgressMaxValue(widgetID, maxValue)
 end
 
 ---|📘- 设置UI控件进度条当前值
----<br>
+---
 ---| `范围`：`客户端`
 ---@param widgetID any 要设置的控件ID
 ---@param currentValue number 要设置的当前值
@@ -331,7 +340,7 @@ function UDK_UI.SetUIProgressCurrentValue(widgetID, currentValue)
 end
 
 ---|📘- 设置UI控件进度条背景底图
----<br>
+---
 ---| `范围`：`客户端`
 ---@param widgetID any 要设置的控件ID
 ---@param imageID any 要设置的图片ID
@@ -347,9 +356,9 @@ function UDK_UI.SetUIProgressBackgroundImage(widgetID, imageID)
 end
 
 ---|📘- 设置UI控件 - 功能/社交/头像昵称控件
----<br>
+---
 ---| `范围`：`客户端`
----<br>
+---
 ---| `根据玩家id设置头像昵称框`
 ---@param widgetID any | any[] 要设置的控件ID
 ---@param playerID number 要设置的玩家ID
@@ -358,6 +367,7 @@ function UDK_UI.SetPlayerIconAndName(widgetID, playerID, setType)
     checkIsClient("UDK.UI.SetPlayerIconAndName")
     --功能/社交/头像昵称控件
     local oneItem = {}
+    ---@return UI.AvatarType AvatarType 头像设置类型：Icon|NickName|Both
     local function getAvatarType(param)
         if param == "Icon" then
             return UI.AvatarType.Icon
@@ -378,7 +388,7 @@ function UDK_UI.SetPlayerIconAndName(widgetID, playerID, setType)
 end
 
 ---|📘- 获取UI控件尺寸
----<br>
+---
 ---| `范围`：`客户端`
 ---@param widgetID any 要获取尺寸的控件ID
 ---@return  number[] table  返回一个包含宽度和高度的数组，返回{X,Y}
@@ -388,9 +398,9 @@ function UDK_UI.GetUISize(widgetID)
 end
 
 ---|📘- 获取UI控件位置
----<br>
+---
 ---| `范围`：`客户端`
----<br>
+---
 ---| `以屏幕中心点为锚点，x的正方向是向右偏移，y的正方向是向下偏移`
 ---@param widgetID any 要获取尺寸的控件ID
 ---@return  number[] table  返回一个包含UI控件位置的数组，返回{X,Y}
@@ -400,29 +410,31 @@ function UDK_UI.GetUIPosition(widgetID)
 end
 
 ---|📘- 获取UI控件以锚点为参考的位置,不同锚点使用的值不同，不使用的属性默认为0
----<br>
+---
 ---| `范围`：`客户端`
 ---@param widgetID any | any[] 要获取尺寸的控件ID
 ---@return  number[] table  返回以锚点为参考的位置数据{X,Y,Left,Right,Bottom,Top}
 function UDK_UI.GetUIAnchoredPosition(widgetID)
     checkIsClient("UDK.UI.GetUIAnchoredPosition")
-    local oneItem = {}
     local returnData
+    local resultTable = {}
     if type(widgetID) == "table" then
-        returnData = UI:GetAnchoredPosition(widgetID)
+        for _, v in ipairs(widgetID) do
+            table.insert(resultTable, UI:GetAnchoredPosition(v))
+        end
+        returnData = resultTable
     else
-        table.insert(oneItem, widgetID)
-        returnData = UI:GetAnchoredPosition(oneItem)
+        returnData = UI:GetAnchoredPosition(widgetID)
     end
     return returnData
 end
 
 ---|📘- 设置原生UI界面的可见性
----<br>
+---
 ---| `范围`：`客户端`
----<br>
+---
 ---| 枚举类型：[UI.UIType枚举文档](https://creator.ymzx.qq.com/dream_helper/dist/script_helper/apis/ui/index.html#%E6%9E%9A%E4%B8%BE%E5%88%97%E8%A1%A8)
----<br>
+---
 ---| `可使用ID或者是枚举内的成员名称字符串，例如"Promotion"、"Countdown"、"TargetPoints"等`
 ---@param interfaceType any | any[] 要设置的原生界面ID列表
 ---@param isVisible boolean 是否可见
@@ -466,6 +478,8 @@ function UDK_UI.SetNativeInterfaceVisible(interfaceType, isVisible)
         if type(v) == "number" then
             targetIDs[v] = true
             queryType = "Number"
+            --- 禁用EmmyLua对UI:SetNativeInterfaceVisible，无法使用其它手段骗过诊断，只能让它忽略
+            ---@diagnostic disable-next-line
             UI:SetNativeInterfaceVisible(v, isVisible)
             logIndex = v + 1
             logOutput = string.format(logStr, nativeInterfaceMap[logIndex].desc, nativeInterfaceMap[logIndex].type,
@@ -484,6 +498,7 @@ function UDK_UI.SetNativeInterfaceVisible(interfaceType, isVisible)
             end
         end
     end
+
     -- 设置可见性并生成返回值
     for _, entry in ipairs(nativeInterfaceMap) do
         if targetIDs[entry.id] then
@@ -496,9 +511,9 @@ function UDK_UI.SetNativeInterfaceVisible(interfaceType, isVisible)
 end
 
 ---|📘- 对玩家屏幕展示信息
----<br>
+---
 ---| `范围`：`客户端`
----<br>
+---
 ---| `可用于制作提示弹窗，制作时测试API所在事件是否触发等`
 ---@param message string 要展示的信息
 function UDK_UI.ShowMessageTip(message)
@@ -518,17 +533,12 @@ function UDK_UI.PrintTable(name, table)
 end
 
 ---|📘- 注册按钮事件
----<br>
+---
 ---| `范围`：`客户端`
----<br>
+---
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/)
----@param buttonID number|number[] 按钮ID（可以使用数组批量注册）
----@param callbackActMap table? 按钮点击回调函数
----| `回调ActMap参数`
----| `Pressed`: 按钮按下事件
----| `Released`: 按钮弹起事件
----| `Moved`: 当按钮被拖动事件，要在按钮UI打开“允许拖动”
----| `Clicked`: 按钮点击事件（此事件不支持传参X, Y轴数据使用会返回0）
+---@param buttonID number | number[] 按钮ID（可以使用数组批量注册）
+---@param callbackActMap UICallbackActMap | table 按钮ActMao回调参数（可用参数BtnID, PressX, PressY）
 function UDK_UI.RegisterButtonEvent(buttonID, callbackActMap)
     checkIsClient("UDK.UI.RegisterButtonEvent")
     local logOutput
@@ -584,11 +594,11 @@ function UDK_UI.RegisterButtonEvent(buttonID, callbackActMap)
 end
 
 ---|📘- 注销按钮事件
----<br>
+---
 ---| `范围`：`客户端`
----<br>
+---
 ---| [API文档](https://wiki.roidmc.com/docs/unix-sdk/)
----@param buttonID number|number[] 要注销的按钮ID（可以使用数组批量注销）
+---@param buttonID number | number[] 要注销的按钮ID（可以使用数组批量注销）
 function UDK_UI.UnRegisterButtonEvent(buttonID)
     checkIsClient("UDK.UI.UnRegisterButtonEvent")
     local logOutput
