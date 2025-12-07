@@ -1,6 +1,6 @@
 -- ==================================================
 -- * UniX SDK - Property Module (C/S Sync)
--- * Version: 0.0.3 (Development)
+-- * Version: 0.0.3
 -- *
 -- * License: MPL-2.0
 -- * See LICENSE file for details.
@@ -54,8 +54,6 @@ UDK_Property.AccessLevel = {
 UDK_Property.NetMsg = {
     ServerSync = 200000,
     ClientSync = 200001,
-    ServerSendAuthorityData = 200002,  --TODO
-    ClientQueryAuthorityData = 200003, --TODO
     ServerAuthoritySync = 200010,
 }
 
@@ -66,8 +64,6 @@ UDK_Property.SyncConf = {
     Type = {
         ServerSync = "ServerSyncEvent",
         ClientSync = "ClientSyncEvent",
-        ClientQueryAuthorityData = "ClientQueryAuthorityData", --TODO
-        ServerSendAuthorityData = "ServerSendAuthorityData",   --TODO
         ServerAuthoritySync = "ServerAuthoritySync"
     },
     CRUD = {
@@ -76,8 +72,8 @@ UDK_Property.SyncConf = {
         Update = "Update",
         Delete = "Delete",
         Clear = "Clear",
-        Get = "Get",            -- WIP
-        ForceSync = "ForceSync" -- WIP
+        Get = "Get", -- WIP
+        Sync = "Sync"
     },
     Status = {
         StandaloneDebug = true,    -- 编辑器和单机环境Debug测试使用
@@ -1098,6 +1094,53 @@ local function networkSyncEventHandle(reqMsg)
                 print(string.format("已接收并应用%s批量权威数据，共 %d 个属性",
                     event.envName or "Unknown", propertyCount))
             end
+        elseif syncReq.reqType == crud.Sync then
+            -- 处理权威数据同步请求
+            if syncReq.object == "FULL_DATA_SYNC" then
+                -- 全量数据同步
+                if syncReq.data and type(syncReq.data) == "table" then
+                    -- 清理当前所有Public数据
+                    for objectId, _ in pairs(dataStore.data) do
+                        swiftDBClear(objectId, UDK_Property.AccessLevel.Public)
+                    end
+
+                    -- 重新设置所有接收到的数据
+                    for objectId, objectData in pairs(syncReq.data) do
+                        if type(objectData) == "table" then
+                            for accessLevel, levelData in pairs(objectData) do
+                                if accessLevel == UDK_Property.AccessLevel.Public and type(levelData) == "table" then
+                                    for propertyType, typeData in pairs(levelData) do
+                                        if type(typeData) == "table" then
+                                            for propertyName, propertyValue in pairs(typeData) do
+                                                swiftDBSet(objectId, accessLevel, propertyType, propertyName,
+                                                    propertyValue)
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    if UDK_Property.SyncConf.Status.DebugPrint then
+                        print(string.format("已接收并应用%s全量权威数据同步", event.envName or "Unknown"))
+                    end
+                else
+                    Log:PrintError(createFormatLog("NetSyncHandle: 全量数据同步请求数据无效"))
+                end
+            else
+                -- 单个属性同步
+                if not syncReq.type or not syncReq.name or syncReq.data == nil then
+                    Log:PrintError(createFormatLog("NetSyncHandle: 单个属性同步请求缺少必需字段"))
+                    return
+                end
+
+                swiftDBSet(syncReq.object, syncReq.accessLevel, syncReq.type, syncReq.name, syncReq.data)
+                if UDK_Property.SyncConf.Status.DebugPrint then
+                    print(string.format("已接收并应用%s单个属性权威数据同步，对象 %s，类型 %s，名称 %s",
+                        event.envName or "Unknown", syncReq.object, syncReq.type, syncReq.name))
+                end
+            end
         else
             Log:PrintError(createFormatLog("NetSyncHandle: 未知的请求类型: " .. tostring(syncReq.reqType)))
         end
@@ -1131,16 +1174,17 @@ local function networkSyncMessageBuild(msgStructure, dataStructure)
     return msg
 end
 
---- 网络RPC消息发送（常规RPC请求）
+--- 网络RPC消息发送
 --- @param reqType string 请求类型
 --- @param object string 对象名称
 --- @param propertyType string 属性类型
 --- @param propertyName string 属性名称
 --- @param propertyValue any 属性值
 --- @param accessLevel string 属性访问级别
+--- @param playerID number? 玩家ID（可选，不填默认同步给所有玩家）
 --- @return boolean isSend 是否成功发送
 --- @return string? error 错误信息
-local function networkRpcMessageSender(reqType, object, propertyType, propertyName, propertyValue, accessLevel)
+local function networkRpcMessageSender(reqType, object, propertyType, propertyName, propertyValue, accessLevel, playerID)
     -- 检查是否处于单元测试模式
     if UDK_Property.SyncConf.Status.UnitTestMode then
         return false, "单元测试模式"
@@ -1167,7 +1211,8 @@ local function networkRpcMessageSender(reqType, object, propertyType, propertyNa
         [crud.Update] = true,
         [crud.Delete] = true,
         [crud.Clear] = true,
-        [crud.SetBatch] = true
+        [crud.SetBatch] = true,
+        [crud.Sync] = true
     }
     if not validReqTypes[reqType] then
         return false, "无效的请求类型: " .. tostring(reqType)
@@ -1177,6 +1222,19 @@ local function networkRpcMessageSender(reqType, object, propertyType, propertyNa
     if reqType == crud.SetBatch then
         if not propertyValue or type(propertyValue) ~= "table" then
             return false, "批量操作需要有效的属性表"
+        end
+    elseif reqType == crud.Sync and object ~= "FULL_DATA_SYNC" then
+        -- Sync操作（单个属性）需要验证基本字段
+        if not propertyType then
+            return false, "缺少属性类型参数"
+        end
+        if not propertyName then
+            return false, "缺少属性名称参数"
+        end
+    elseif reqType == crud.Sync and object == "FULL_DATA_SYNC" then
+        -- Sync操作（全量数据）需要验证数据
+        if not propertyValue or type(propertyValue) ~= "table" then
+            return false, "全量数据同步需要有效的数据表"
         end
     else
         -- 非批量操作需要验证基本字段
@@ -1191,19 +1249,30 @@ local function networkRpcMessageSender(reqType, object, propertyType, propertyNa
     -- 获取当前环境信息并构建数据结构
     local envInfo = envCheck()
     local envType = UDK_Property.SyncConf.EnvType
-    local dataStructure = {
+
+    local dataStructure
+    -- 常规操作的数据结构
+    dataStructure = {
         Object = object,
         Type = propertyType or "",
         Name = propertyName or "",
-        Data = propertyValue,
+        Data = propertyValue, -- 全量同步时这里会带全数据
         AccessLevel = accessLevel
     }
 
     -- 服务器环境
     if envInfo.envID == envType.Server.ID or envInfo.isStandalone then
+        local netMsgID, netMsgType
+        if reqType == crud.Sync then
+            netMsgID = UDK_Property.NetMsg.ServerAuthoritySync
+            netMsgType = UDK_Property.SyncConf.Type.ServerAuthoritySync
+        else
+            netMsgID = UDK_Property.NetMsg.ServerSync
+            netMsgType = UDK_Property.SyncConf.Type.ServerSync
+        end
         local msgStructure = {
-            MsgID = UDK_Property.NetMsg.ServerSync,
-            EventType = UDK_Property.SyncConf.Type.ServerSync,
+            MsgID = netMsgID,
+            EventType = netMsgType,
             RequestID = nanoIDGenerate(),
             RequestTimestamp = getTimestamp(),
             EnvType = envInfo.envID,
@@ -1213,7 +1282,11 @@ local function networkRpcMessageSender(reqType, object, propertyType, propertyNa
         }
 
         local msg = networkSyncMessageBuild(msgStructure, dataStructure)
-        System:SendToAllClients(msgStructure.MsgID, msg)
+        if type(playerID) == "number" and playerID ~= nil then
+            System:SendToClient(playerID, msgStructure.MsgID, msg)
+        else
+            System:SendToAllClients(msgStructure.MsgID, msg)
+        end
         return true
     end
 
@@ -1284,13 +1357,11 @@ end
 local function networkBindNotifyInit()
     if System:IsServer() then
         System:BindNotify(UDK_Property.NetMsg.ClientSync, networkRpcMessageHandler())
-        System:BindNotify(UDK_Property.NetMsg.ClientQueryAuthorityData, networkRpcMessageHandler()) --TODO
     end
 
     if System:IsClient() then
         System:BindNotify(UDK_Property.NetMsg.ServerSync, networkRpcMessageHandler())
         System:BindNotify(UDK_Property.NetMsg.ServerAuthoritySync, networkRpcMessageHandler())
-        System:BindNotify(UDK_Property.NetMsg.ServerSendAuthorityData, networkRpcMessageHandler()) --TODO
     end
 end
 
@@ -1670,6 +1741,80 @@ function UDK_Property.GetPropertyData(object, propertyType, propertyName, access
 
     -- 使用SwiftDB获取完整属性数据
     return swiftDBGetPropertyData(normalizeID, accessLevel, propertyType, propertyName)
+end
+
+---|📘- 同步服务器权威数据
+---
+---| `范围`: `服务端`
+---
+---| `该功能用于在极端情况下客户端数据不同步时，强制同步服务器权威数据`
+---@param playerID number? 玩家ID（客户端ID，可选，不填时同步所有玩家）
+---@param syncData {object: string | number | {id: string|number}, propertyType: string, propertyName: string, data: any} 同步对象（可选，仅适用于同步单个数据）
+function UDK_Property.SyncAuthorityData(playerID, syncData)
+    -- 检查是否处于单元测试模式
+    if UDK_Property.SyncConf.Status.UnitTestMode then
+        if UDK_Property.SyncConf.Status.DebugPrint then
+            print("单元测试模式下跳过权威数据同步")
+        end
+        return
+    end
+
+    -- 获取当前环境信息
+    local envInfo = envCheck()
+    local envType = UDK_Property.SyncConf.EnvType
+
+    -- 仅允许服务器或单机模式下调用
+    if envInfo.envID ~= envType.Server.ID and not envInfo.isStandalone then
+        if UDK_Property.SyncConf.Status.DebugPrint then
+            print("客户端无法调用权威数据同步接口，请在服务器端调用")
+        end
+        return
+    end
+
+    -- 如果提供了syncData，则同步单个属性
+    if syncData and syncData.object and syncData.propertyType and syncData.propertyName and syncData.data then
+        -- 发送网络RPC消息
+        local crudType = UDK_Property.SyncConf.CRUD.Sync
+        networkRpcMessageSender(crudType, syncData.object, syncData.propertyType,
+            syncData.propertyName, syncData.data, UDK_Property.AccessLevel.Public, playerID)
+        return
+    end
+
+    -- 如果没有提供syncData，则同步所有Public级别的数据
+    -- 构建完整数据结构
+    local fullData = {}
+
+    -- 遍历所有对象
+    for objectId, objectData in pairs(dataStore.data) do
+        fullData[objectId] = {}
+
+        -- 遍历所有访问级别
+        for accessLevel, levelData in pairs(objectData) do
+            -- 只同步Public级别的数据
+            if accessLevel == UDK_Property.AccessLevel.Public then
+                fullData[objectId][accessLevel] = {}
+
+                -- 遍历所有属性类型
+                for propertyType, typeData in pairs(levelData) do
+                    fullData[objectId][accessLevel][propertyType] = {}
+
+                    -- 遍历所有属性
+                    for propertyName, propertyData in pairs(typeData) do
+                        fullData[objectId][accessLevel][propertyType][propertyName] = propertyData.value
+                    end
+                end
+            end
+        end
+
+        -- 如果对象没有Public数据，则移除该对象条目
+        if next(fullData[objectId]) == nil then
+            fullData[objectId] = nil
+        end
+    end
+
+    -- 发送完整数据同步消息
+    local crudType = UDK_Property.SyncConf.CRUD.Sync
+    networkRpcMessageSender(crudType, "FULL_DATA_SYNC", "", "", fullData, UDK_Property.AccessLevel.Public, playerID)
 end
 
 return UDK_Property
