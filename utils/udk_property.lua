@@ -1773,9 +1773,13 @@ function UDK_Property.SyncAuthorityData(playerID, syncData)
 
     -- 如果提供了syncData，则同步单个属性
     if syncData and syncData.object and syncData.propertyType and syncData.propertyName and syncData.data then
+        local normalizeID, errorMsg = validatePropertyParams(syncData.object)
+        if not normalizeID then
+            return false, errorMsg
+        end
         -- 发送网络RPC消息
         local crudType = UDK_Property.SyncConf.CRUD.Sync
-        networkRpcMessageSender(crudType, syncData.object, syncData.propertyType,
+        networkRpcMessageSender(crudType, normalizeID, syncData.propertyType,
             syncData.propertyName, syncData.data, UDK_Property.AccessLevel.Public, playerID)
         return
     end
