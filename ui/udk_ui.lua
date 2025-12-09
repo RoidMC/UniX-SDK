@@ -111,19 +111,19 @@ function UDK_UI.SetUIVisibility(showWidgetIDs, hideWidgetIDs)
             -- 显示控件
             local oneItem = {}
             if type(showWidgetIDs) == "table" then
-                UI:SetVisible(showWidgetIDs, true)
+                UI:SetVisibility(showWidgetIDs, true)
             else
                 table.insert(oneItem, showWidgetIDs)
-                UI:SetVisible(oneItem, true)
+                UI:SetVisibility(oneItem, true)
             end
         else
             -- 隐藏控件
             local oneItem = {}
             if type(showWidgetIDs) == "table" then
-                UI:SetVisible(showWidgetIDs, false)
+                UI:SetVisibility(showWidgetIDs, false)
             else
                 table.insert(oneItem, showWidgetIDs)
-                UI:SetVisible(oneItem, false)
+                UI:SetVisibility(oneItem, false)
             end
         end
         return
