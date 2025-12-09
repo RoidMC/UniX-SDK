@@ -15,6 +15,7 @@
 -- * 2025 © RoidMC Studios
 -- ==================================================
 
+---@class UDK.Motage
 local UDK_Motage = {}
 
 UDK_Motage.NetMsg = {
@@ -47,7 +48,7 @@ local function envCheck()
     }
 end
 
-local function clientAnimHandler(_msgID, msg)
+local function clientAnimHandler(_, msg)
     --Log:PrintTable(msg)
    --Log:PrintLog(Animation.PLAYER_TYPE.Character)
     if msg.AnimType == "PlayAnim" then

@@ -32,7 +32,7 @@ local string_format = string.format
 local math_type = math.type
 local math_floor = math.floor
 
--- 创建模块表
+---@class UDK.Composer
 local UDK_Composer = {}
 
 -- 定义类型标识

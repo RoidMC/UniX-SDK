@@ -7,6 +7,8 @@
 -- *
 -- * 2025 © RoidMC Studios
 -- ==================================================
+
+---@class UDK.Extension
 local UDK_Extends = {}
 
 

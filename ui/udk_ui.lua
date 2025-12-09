@@ -133,10 +133,10 @@ function UDK_UI.SetUIVisibility(showWidgetIDs, hideWidgetIDs)
     if hideWidgetIDs == nil then
         local oneItem = {}
         if type(showWidgetIDs) == "table" then
-            UI:SetVisible(showWidgetIDs, true)
+            UI:SetVisibility(showWidgetIDs, true)
         else
             table.insert(oneItem, showWidgetIDs)
-            UI:SetVisible(oneItem, true)
+            UI:SetVisibility(oneItem, true)
         end
         return
     end
@@ -144,20 +144,20 @@ function UDK_UI.SetUIVisibility(showWidgetIDs, hideWidgetIDs)
     -- 标准调用方式：处理隐藏控件
     local oneItem
     if type(hideWidgetIDs) == "table" then
-        UI:SetVisible(hideWidgetIDs, false)
+        UI:SetVisibility(hideWidgetIDs, false)
     else
         oneItem = {}
         table.insert(oneItem, hideWidgetIDs)
-        UI:SetVisible(oneItem, false)
+        UI:SetVisibility(oneItem, false)
     end
 
     -- 标准调用方式：处理显示控件
     if type(showWidgetIDs) == "table" then
-        UI:SetVisible(showWidgetIDs, true)
+        UI:SetVisibility(showWidgetIDs, true)
     else
         oneItem = {}
         table.insert(oneItem, showWidgetIDs)
-        UI:SetVisible(oneItem, true)
+        UI:SetVisibility(oneItem, true)
     end
 end
 

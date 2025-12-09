@@ -130,7 +130,7 @@ local function createFadeAnimation(id, fadeType, options)
     -- 如果是淡入，确保控件可见
     if isVisible then
         local success, err = pcall(function()
-            UI:SetVisible({ id }, true)
+            UI:SetVisibility({ id }, true)
         end)
 
         if not success then
@@ -188,7 +188,7 @@ local function createFadeAnimation(id, fadeType, options)
             -- 如果是淡出，完成后隐藏控件
             if not isVisible then
                 local uiSuccess, uiErr = pcall(function()
-                    UI:SetVisible({ id }, false)
+                    UI:SetVisibility({ id }, false)
                 end)
 
                 if not uiSuccess then

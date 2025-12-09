@@ -15,6 +15,7 @@
 -- * 2025 © RoidMC Studios
 -- ==================================================
 
+---@class UDK.Guide
 local UDK_Guide = {}
 
 UDK_Guide.NetMsg = {
@@ -150,7 +151,7 @@ function UDK_Guide.SetGuideImageSize(guideID, imageSize)
 end
 
 ---|📘 设置目标指引器图案提示文本
----<br>
+---
 ---| `说明`：`最多七个字`
 ---@param guideID number 目标指引器元件ID
 ---@param labelText string 提示文本

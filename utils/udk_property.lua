@@ -1377,10 +1377,10 @@ end
 ---|📘- 设置属性数据
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
----@param object string | number | {id: string | number}
----@param propertyType SupportType | string
----@param propertyName string
----@param data any
+---@param object string | number | {id: string | number} 对象名称
+---@param propertyType SupportType | string 属性类型
+---@param propertyName string 属性名称
+---@param data any 属性数据
 ---@param accessLevel string? 访问级别，默认为Public
 ---@return boolean success 是否成功
 ---@return string? error 错误信息
@@ -1424,7 +1424,7 @@ end
 ---|📘- 批量设置属性数据
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
----@param object string | number | {id: string | number}
+---@param object string | number | {id: string | number} 对象ID
 ---@param properties table<string, table<string, any>> 属性表 {propertyType = {propertyName = value}}
 ---@param accessLevel string? 访问级别，默认为Public
 ---@return boolean success 是否成功
@@ -1472,9 +1472,9 @@ end
 ---|📘- 获取属性值
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
----@param object string | number | {id: string | number}
----@param propertyType SupportType | string
----@param propertyName string
+---@param object string | number | {id: string | number} 对象名称
+---@param propertyType SupportType | string 属性类型
+---@param propertyName string 属性名称
 ---@param accessLevel string? 访问级别，默认为Public
 ---@return any? data 获取到的属性值
 ---@return string? error 错误信息
@@ -1499,7 +1499,7 @@ end
 ---|📘- 获取对象的所有属性
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
----@param object string | number | {id: string | number}
+---@param object string | number | {id: string | number} 对象名称
 ---@param accessLevel string? 访问级别，nil表示获取所有级别的属性，默认为nil
 ---@return table<string, table<string, any>>? properties 属性表 {accessLevel = {propertyType = {propertyName = value}}}
 ---@return string? error 错误信息
@@ -1521,7 +1521,7 @@ end
 ---|📘- 获取属性类型信息
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
----@param object string | number | {id: string | number}
+---@param object string | number | {id: string | number} 对象名称
 ---@param propertyType SupportType | string 属性类型
 ---@param propertyName string 属性名称
 ---@param accessLevel string? 访问级别，默认为Public
@@ -1571,7 +1571,7 @@ end
 ---|📘- 获取对象特定类型的所有属性
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
----@param object string | number | {id: string | number}
+---@param object string | number | {id: string | number} 对象名称
 ---@param propertyType SupportType | string 属性类型
 ---@param accessLevel string? 访问级别，默认为Public
 ---@return table<string, any>? properties 属性表 {propertyName = value}
@@ -1601,9 +1601,9 @@ end
 ---|📘- 删除属性值
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
----@param object string | number | {id: string | number}
----@param propertyType SupportType | string
----@param propertyName string
+---@param object string | number | {id: string | number} 对象名称
+---@param propertyType SupportType | string 属性类型
+---@param propertyName string 属性名称
 ---@param accessLevel string? 访问级别，默认为Public
 ---@return boolean success 是否成功
 ---@return string? error 错误信息
@@ -1631,8 +1631,8 @@ end
 ---|📘- 删除对象下面所有对应类型的属性
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
----@param object string | number | {id: string | number}
----@param propertyType SupportType | string
+---@param object string | number | {id: string | number} 对象名称
+---@param propertyType SupportType | string 属性类型
 ---@param accessLevel string? 访问级别，默认为Public
 ---@return boolean success 是否成功
 ---@return string? error 错误信息
@@ -1693,8 +1693,8 @@ end
 ---|📘- 检查属性是否存在
 ---
 ---| 支持类型 `Boolean` | `Number` |  `String` | `Array` | `Vector` | `Color` | `Map` | `Any`
----@param object string | number | {id: string | number}
----@param propertyType SupportType | string
+---@param object string | number | {id: string | number} 对象名称
+---@param propertyType SupportType | string 属性类型
 ---@param propertyName string 属性名称
 ---@param accessLevel string? 访问级别，默认为Public
 ---@return boolean exists 是否存在
@@ -1719,8 +1719,8 @@ end
 ---|📘- 获取属性的完整元数据
 ---
 ---| 获取属性的完整信息，包括值、创建时间、更新时间
----@param object string | number | {id: string | number}
----@param propertyType SupportType | string
+---@param object string | number | {id: string | number} 对象名称
+---@param propertyType SupportType | string 属性类型
 ---@param propertyName string 属性名称
 ---@param accessLevel string? 访问级别，默认为Public
 ---@return table? propertyData 属性完整数据 {value, createdAt, updatedAt}
