@@ -41,10 +41,10 @@ UniX SDK采用双重许可：
 
 ```lua
 -- GameEntry.lua
+
 -- 加载SDK全部功能
-local UDK = require("Public.UniX-SDK.main")
 -- 在_G全局变量中注册UDK（SDK推荐注册方法）
-_G.UDK = UDK
+_G.UDK = require("Public.UniX-SDK.main")
 
 local Enum_Test_Array = {
     Test="Hello World!",
@@ -78,20 +78,6 @@ UDK.UI.SetNativeInterfaceVisible(
     { "Promotion", "Countdown", "TargetPoints", "CampPoints", "PersonalPoints", "Leaderboard", "HealthBar", "Settings",
         "RemainingPlayers", "MapHint", "EmotesAndActions", "QuickChat" }, true)
 ```
-
-<!--
-## 📦 模块
-
-- [x] [UDK.Math](./utils/udk_math.lua)
-- [x] [UDK.Array](./utils/udk_array.lua)
-- [ ] [UDK.Animation](./ui/udk_animation.lua)
-- [x] [UDK.Player](./utils/udk_player.lua)
-- [x] [UDK.Storage](./utils/udk_storage.lua)
-- [ ] [UDK.Logger](./utils/udk_logger.lua)
-- [x] [UDK.UI](./ui/udk_ui.lua)
-- [x] [UDK.Sound](./sound/udk_sound.lua)
-- [x] [UDK.Libs.Toml](./utils/udk_toml.lua)
--->
 
 ## 🤝 贡献
 
