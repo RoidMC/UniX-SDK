@@ -1,6 +1,6 @@
 -- ==================================================
 -- * UniX SDK - Toml Utils
--- * Version: 0.0.2
+-- * Version: 0.0.3
 -- *
 -- * License: MPL-2.0
 -- * See LICENSE file for details.
@@ -408,6 +408,61 @@ local function parse_value(value)
     end
 end
 
+--- 处理键名，支持引号键和嵌套键
+---@param key string 原始键名
+---@return table key_parts 键名拆分后的数组
+local function process_key_name(key)
+    key = trim(key)
+
+    -- 检查键是否被引号包围
+    local is_quoted = false
+    local clean_key = key
+
+    -- 检查键的开始和结束是否有相同的引号
+    if (key:sub(1, 1) == '"' and key:sub(-1) == '"') or
+        (key:sub(1, 1) == "'" and key:sub(-1) == "'") then
+        is_quoted = true
+        clean_key = key:sub(2, -2) -- 去除外层引号
+    end
+
+    -- 处理嵌套键名（只有非引号键才拆分）
+    local key_parts = {}
+    if is_quoted then
+        -- 带引号的键作为整体
+        table.insert(key_parts, clean_key)
+    else
+        -- 不带引号的键进行嵌套拆分
+        for k in key:gmatch("[^%.]+") do
+            table.insert(key_parts, k)
+        end
+    end
+
+    return key_parts
+end
+
+--- 设置嵌套键的值
+---@param current_table table 当前表
+---@param key_parts table 键名拆分后的数组
+---@param value any 要设置的值
+local function set_nested_value(current_table, key_parts, value)
+    local target_table = current_table
+
+    -- 如果有嵌套键，创建嵌套结构
+    for i = 1, #key_parts - 1 do
+        if not target_table[key_parts[i]] then
+            target_table[key_parts[i]] = {}
+        elseif type(target_table[key_parts[i]]) ~= "table" then
+            -- 如果已存在但不是表，需要转换为表（这可能是错误情况）
+            target_table[key_parts[i]] = {}
+        end
+        target_table = target_table[key_parts[i]]
+    end
+
+    -- 最终的键名
+    local final_key = key_parts[#key_parts]
+    target_table[final_key] = value
+end
+
 local function parse_line(line, current_table)
     -- 先处理注释，但需要考虑字符串内的#不是注释
     local content_part = line
@@ -441,10 +496,14 @@ local function parse_line(line, current_table)
 
     local key, value = content_part:match("([^=]+)%s*=%s*(.*)")
     if key and value then
-        key = trim(key)                         -- 去除键的空白字符
-        value = trim(value)                     -- 去除值的空白字符
+        value = trim(value) -- 去除值的空白字符
         debug_print("Parsing key-value:", key, "=", value)
-        current_table[key] = parse_value(value) -- 解析值并存储到当前表中
+
+        -- 使用通用的键处理函数
+        local key_parts = process_key_name(key)
+
+        -- 设置嵌套值
+        set_nested_value(current_table, key_parts, parse_value(value))
     end
 end
 
@@ -513,9 +572,10 @@ function UDK_Toml_Lib.Parse(toml_string)
                 local full_content = multiline_type .. table.concat(multiline_content, "\n") .. multiline_type
                 debug_print("Full multiline content:", full_content)
 
-                current_table[multiline_key] = parse_multiline_string(full_content,
-                    multiline_type == "'''" and 'single' or 'double')
-                debug_print("Parsed multiline result:", current_table[multiline_key])
+                -- 使用嵌套键设置函数
+                set_nested_value(current_table, multiline_key,
+                    parse_multiline_string(full_content, multiline_type == "'''" and 'single' or 'double'))
+                debug_print("Parsed multiline result with nested keys")
 
                 in_multiline = false
                 multiline_content = {}
@@ -550,8 +610,9 @@ function UDK_Toml_Lib.Parse(toml_string)
                             -- 数组结束
                             multiline_array_content = multiline_array_content .. line:sub(1, line:find("]"))
                             debug_print("Multiline array complete:", multiline_array_content)
-                            current_table[multiline_array_key] = parse_value(multiline_array_content)
-                            debug_print("Parsed multiline array result:", current_table[multiline_array_key])
+                            -- 使用嵌套键设置函数
+                            set_nested_value(current_table, multiline_array_key, parse_value(multiline_array_content))
+                            debug_print("Parsed multiline array result with nested keys")
                             in_multiline_array = false
                             multiline_array_content = ""
                             break
@@ -582,7 +643,10 @@ function UDK_Toml_Lib.Parse(toml_string)
                 -- 确保不是内联表（不以 { 开头）
                 if key and array_start and not array_start:match("%]%s*$") and not line:match("=%s*{") then
                     debug_print("Starting multiline array:", key)
-                    multiline_array_key = trim(key)
+                    -- 处理多行数组的键名（使用相同的逻辑）
+                    local key_parts = process_key_name(key)
+                    -- 保存键的层级路径，以便后续设置值
+                    multiline_array_key = key_parts
                     in_multiline_array = true
                     multiline_array_content = array_start
 
@@ -600,7 +664,8 @@ function UDK_Toml_Lib.Parse(toml_string)
                     -- 检查是否在同一行结束
                     if multiline_array_depth == 0 then
                         debug_print("Array completed in the same line")
-                        current_table[multiline_array_key] = parse_value(multiline_array_content)
+                        -- 使用嵌套键设置函数
+                        set_nested_value(current_table, multiline_array_key, parse_value(multiline_array_content))
                         in_multiline_array = false
                         multiline_array_content = ""
                     end
@@ -610,7 +675,10 @@ function UDK_Toml_Lib.Parse(toml_string)
                     if key then
                         debug_print("Starting double-quoted multiline string:", key)
                         multiline_type = '"""'
-                        multiline_key = trim(key)
+                        -- 处理多行字符串的键名（使用相同的逻辑）
+                        local key_parts = process_key_name(key)
+                        -- 保存键的层级路径，以便后续设置值
+                        multiline_key = key_parts
                         in_multiline = true
                         multiline_content = {}
                         -- 记录缩进
@@ -625,7 +693,10 @@ function UDK_Toml_Lib.Parse(toml_string)
                         if key then
                             debug_print("Starting single-quoted multiline string:", key)
                             multiline_type = "'''"
-                            multiline_key = trim(key)
+                            -- 处理多行字符串的键名（使用相同的逻辑）
+                            local key_parts = process_key_name(key)
+                            -- 保存键的层级路径，以便后续设置值
+                            multiline_key = key_parts
                             in_multiline = true
                             multiline_content = {}
                             -- 记录缩进
