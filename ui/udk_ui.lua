@@ -161,6 +161,78 @@ function UDK_UI.SetUIVisibility(showWidgetIDs, hideWidgetIDs)
     end
 end
 
+---| 📘- 设置UI控件的显隐（对控件进行创建和销毁）
+---
+---| `范围`：`客户端`
+---
+---| `兼容性`：支持多种调用方式
+---
+---| 用法1（标准）：UDK_UI.SetUIOnShow(showWidgetIDs, hideWidgetIDs)
+---
+---| 用法2（布尔值）：UDK_UI.SetUIOnShow(widgetID, isVisible)
+---
+---| 用法3（传统）：UDK_UI.SetUIOnShow(widgetID) 或 UDK_UI.SetUIOnShow("", widgetID)
+---@param showWidgetIDs any | any[] 要显示的控件ID列表，或者在布尔值用法中为控件ID
+---@param hideWidgetIDs any | any[] 要隐藏的控件ID列表，或者在布尔值用法中为布尔值
+function UDK_UI.SetUIOnShow(showWidgetIDs, hideWidgetIDs)
+    checkIsClient("UDK.UI.SetUIOnShow")
+
+    -- 兼容性处理：支持布尔值调用方式 (widgetID, isVisible)
+    if type(hideWidgetIDs) == "boolean" then
+        if hideWidgetIDs then
+            -- 显示控件
+            local oneItem = {}
+            if type(showWidgetIDs) == "table" then
+                UI:OnShow(showWidgetIDs, true)
+            else
+                table.insert(oneItem, showWidgetIDs)
+                UI:OnShow(oneItem, true)
+            end
+        else
+            -- 隐藏控件
+            local oneItem = {}
+            if type(showWidgetIDs) == "table" then
+                UI:OnShow(showWidgetIDs, false)
+            else
+                table.insert(oneItem, showWidgetIDs)
+                UI:OnShow(oneItem, false)
+            end
+        end
+        return
+    end
+
+    -- 兼容性处理：支持传统调用方式 UDK_UI.SetUIVisibility(widgetID)
+    if hideWidgetIDs == nil then
+        local oneItem = {}
+        if type(showWidgetIDs) == "table" then
+            UI:OnShow(showWidgetIDs, true)
+        else
+            table.insert(oneItem, showWidgetIDs)
+            UI:OnShow(oneItem, true)
+        end
+        return
+    end
+
+    -- 标准调用方式：处理隐藏控件
+    local oneItem
+    if type(hideWidgetIDs) == "table" then
+        UI:OnShow(hideWidgetIDs, false)
+    else
+        oneItem = {}
+        table.insert(oneItem, hideWidgetIDs)
+        UI:OnShow(oneItem, false)
+    end
+
+    -- 标准调用方式：处理显示控件
+    if type(showWidgetIDs) == "table" then
+        UI:OnShow(showWidgetIDs, true)
+    else
+        oneItem = {}
+        table.insert(oneItem, showWidgetIDs)
+        UI:OnShow(oneItem, true)
+    end
+end
+
 ---|📘- 设置UI控件尺寸
 ---
 ---| `范围`：`客户端`
