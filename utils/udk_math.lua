@@ -90,7 +90,7 @@ end
 ---|📘- 将秒数转换为小时、分钟、秒的格式
 ---@param seconds number 当前秒数
 ---@param displayFormat string? 显示格式，可选值：'hms'、'hm'、'ms'、'h'、'm'、's'，默认为'hms'
----@return string formatted_time 格式化后的时间字符串
+---@return string formatTimeResult 格式化后的时间字符串
 function UDK_Math.ConvertSecondsToHMS(seconds, displayFormat)
     validateNonNegativeNumber(seconds, "seconds")
 
@@ -104,11 +104,11 @@ function UDK_Math.ConvertSecondsToHMS(seconds, displayFormat)
         ['ms'] = function() return string.format("%02d:%02d", minutes, secs) end,
         ['h'] = function() return string.format("%02d", hours) end,
         ['m'] = function() return string.format("%02d", minutes) end,
-        ['s'] = function() return string.format("%02d", secs) end,
-        ['default'] = function() return string.format("%02d:%02d:%02d", hours, minutes, secs) end
+        ['s'] = function() return string.format("%02d", secs) end
     }
 
-    local formatTimeResult = (formatMap[displayFormat] or formatMap['default'])()
+    -- displayFormat未指定的情况下使用hms格式
+    local formatTimeResult = (formatMap[displayFormat] or formatMap['hms'])()
 
     return formatTimeResult
 end
