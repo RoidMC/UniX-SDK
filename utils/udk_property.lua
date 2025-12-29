@@ -322,9 +322,8 @@ local function getTimestamp()
     if UDK_Property.SyncConf.Status.UnitTestMode then
         return os.time()
     else
-        local serverTime = MiscService:GetServerTimeToTime()
-        local timeStamp = MiscService:DateYMDHMSToTime(serverTime) --1702594800
-        return math.floor(timeStamp * 1000)
+        local serverTime = MiscService:GetServerTimestamp()
+        return serverTime
     end
 end
 

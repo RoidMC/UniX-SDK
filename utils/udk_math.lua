@@ -55,9 +55,8 @@ end
 
 -- 获取时间戳
 local function getTimeStamp()
-    local serverTime = MiscService:GetServerTimeToTime()
-    local timeStamp = MiscService:DateYMDHMSToTime(serverTime) --1702594800
-    return math.floor(timeStamp * 1000)
+    local serverTime = MiscService:GetServerTimestamp()
+    return serverTime
 end
 
 ---|📘- 将数值转换为百分比
@@ -98,26 +97,20 @@ function UDK_Math.ConvertSecondsToHMS(seconds, displayFormat)
     local hours = math.floor(seconds / 3600)
     local minutes = math.floor((seconds % 3600) / 60)
     local secs = math.floor(seconds % 60)
-    local formatted_time
 
-    -- 格式化输出，确保分钟和秒都是两位数
-    if displayFormat == 'hms' then
-        formatted_time = string.format("%02d:%02d:%02d", hours, minutes, secs)
-    elseif displayFormat == 'hm' then
-        formatted_time = string.format("%02d:%02d", hours, minutes)
-    elseif displayFormat == 'ms' then
-        formatted_time = string.format("%02d:%02d", minutes, secs)
-    elseif displayFormat == 'h' then
-        formatted_time = string.format("%02d", hours)
-    elseif displayFormat == 'm' then
-        formatted_time = string.format("%02d", minutes)
-    elseif displayFormat == 's' then
-        formatted_time = string.format("%02d", secs)
-    else
-        formatted_time = string.format("%02d:%02d:%02d", hours, minutes, secs) -- 默认输出 hms 格式
-    end
+    local formatMap = {
+        ['hms'] = function() return string.format("%02d:%02d:%02d", hours, minutes, secs) end,
+        ['hm'] = function() return string.format("%02d:%02d", hours, minutes) end,
+        ['ms'] = function() return string.format("%02d:%02d", minutes, secs) end,
+        ['h'] = function() return string.format("%02d", hours) end,
+        ['m'] = function() return string.format("%02d", minutes) end,
+        ['s'] = function() return string.format("%02d", secs) end,
+        ['default'] = function() return string.format("%02d:%02d:%02d", hours, minutes, secs) end
+    }
 
-    return formatted_time
+    local formatTimeResult = (formatMap[displayFormat] or formatMap['default'])()
+
+    return formatTimeResult
 end
 
 ---|📘- 计算两个点之间的距离
@@ -195,7 +188,7 @@ function UDK_Math.SnowflakeGenerateID()
         return timestamp
     end
 
-    local timestamp =getTimeStamp()
+    local timestamp = getTimeStamp()
 
     if timestamp < lastTimestamp then
         Log:PrintWarning("[UDK:Math] SnowflakeGenerateID: Clock moved backwards. Refusing to generate id.")
@@ -339,6 +332,49 @@ function UDK_Math.LinearGrowth(baseValue, incrementStep, occurrenceCount, alignM
         return math.floor(raw_result)
     else
         return raw_result -- 原始值输出
+    end
+end
+
+---|📘- 将时间戳转换为指定格式的日期时间字符串
+---
+---| 支持多种日期时间显示格式
+---@param timestamp number 时间戳（毫秒）
+---@param format string? 日期时间显示格式，默认为'Y/M/D h:m:s'，可选值：'Y/M/D h:m:s'、'Y-M-D h:m:s'、'D/M/Y h:m:s'
+---@return string datetime 格式化后的日期时间字符串
+function UDK_Math.FormatTimestamp(timestamp, format)
+    validateNonNegativeNumber(timestamp, "timestamp")
+
+    -- 提取时间组件
+    local timeComponents = {
+        year = MiscService:TimeStampToTime(timestamp, MiscService.ETimeUnit.Year),
+        month = MiscService:TimeStampToTime(timestamp, MiscService.ETimeUnit.Month),
+        day = MiscService:TimeStampToTime(timestamp, MiscService.ETimeUnit.Day),
+        hour = MiscService:TimeStampToTime(timestamp, MiscService.ETimeUnit.Hour),
+        min = MiscService:TimeStampToTime(timestamp, MiscService.ETimeUnit.Min),
+        sec = MiscService:TimeStampToTime(timestamp, MiscService.ETimeUnit.Sec)
+    }
+
+    -- 默认格式
+    format = format or 'Y/M/D h:m:s'
+
+    -- 根据格式返回相应字符串
+    if format == 'Y/M/D h:m:s' then
+        return string.format("%d/%d/%d %d:%d:%d",
+            timeComponents.year, timeComponents.month, timeComponents.day,
+            timeComponents.hour, timeComponents.min, timeComponents.sec)
+    elseif format == 'Y-M-D h:m:s' then
+        return string.format("%d-%d-%d %d:%d:%d",
+            timeComponents.year, timeComponents.month, timeComponents.day,
+            timeComponents.hour, timeComponents.min, timeComponents.sec)
+    elseif format == 'D/M/Y h:m:s' then
+        return string.format("%d/%d/%d %d:%d:%d",
+            timeComponents.day, timeComponents.month, timeComponents.year,
+            timeComponents.hour, timeComponents.min, timeComponents.sec)
+    else
+        -- 默认格式
+        return string.format("%d/%d/%d %d:%d:%d",
+            timeComponents.year, timeComponents.month, timeComponents.day,
+            timeComponents.hour, timeComponents.min, timeComponents.sec)
     end
 end
 
