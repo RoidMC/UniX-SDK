@@ -5,7 +5,7 @@
 -- *
 -- * Have fun :）
 -- *
--- * 2025 © RoidMC Studios
+-- * 2025-2026 © RoidMC Studios
 -- ==================================================
 
 ---@class UDK.Extension

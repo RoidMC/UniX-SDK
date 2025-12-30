@@ -12,7 +12,7 @@
 -- * Github: https://github.com/RoidMC
 -- * SDK-Doc: https://wiki.roidmc.com/docs/unix-sdk
 -- *
--- * 2025 © RoidMC Studios
+-- * 2025-2026 © RoidMC Studios
 -- ==================================================
 
 -- 本地化常用函数以提高访问速度

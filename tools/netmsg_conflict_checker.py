@@ -8,7 +8,7 @@ Version: 1.0.0
 License: MPL-2.0
 See LICENSE file for details.
 
-2025 © RoidMC Studios
+2025-2026 © RoidMC Studios
 
 网络消息ID冲突检测工具
 

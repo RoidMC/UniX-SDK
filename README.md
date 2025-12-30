@@ -92,7 +92,7 @@ UDK.UI.SetNativeInterfaceVisible(
 
 ---
 
-2025 © [RoidMC Studios](https://www.roidmc.com) | [MPL-2.0 License](./LICENSE)
+2025-2026 © [RoidMC Studios](https://www.roidmc.com) | [MPL-2.0 License](./LICENSE)
 <!--
 Ciallo～(∠・ω )⌒☆
 -->

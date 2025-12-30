@@ -15,7 +15,7 @@
 -- * Github: https://github.com/RoidMC
 -- * SDK-Doc: https://wiki.roidmc.com/docs/unix-sdk
 -- *
--- * 2025 © RoidMC Studios
+-- * 2025-2026 © RoidMC Studios
 -- ==================================================
 
 -- 直接加载模块文件

@@ -15,7 +15,7 @@
 -- * Github: https://github.com/RoidMC
 -- * SDK-Doc: https://wiki.roidmc.com/docs/unix-sdk
 -- *
--- * 2025 © RoidMC Studios
+-- * 2025-2026 © RoidMC Studios
 -- ==================================================
 
 -- 使用局部变量保存原始函数，避免修改全局环境

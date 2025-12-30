@@ -12,7 +12,7 @@
 -- * Github: https://github.com/RoidMC
 -- * SDK-Doc: https://wiki.roidmc.com/docs/unix-sdk
 -- *
--- * 2025 © RoidMC Studios
+-- * 2025-2026 © RoidMC Studios
 -- ==================================================
 
 ---@class UDK.Heartbeat
@@ -60,9 +60,8 @@ local heartbeatStats = {
 local function getTimestamp()
     -- Lua2.0用不了os.time()
     -- 换成Lua2.0提供的接口生成需要的时间戳
-    local serverTime = MiscService:GetServerTimeToTime()
-    local timeStamp = MiscService:DateYMDHMSToTime(serverTime) --1702594800
-    return math.floor(timeStamp * 1000)
+    local serverTime = MiscService:GetServerTimestamp()
+    return serverTime
 end
 
 -- 生成NanoID
