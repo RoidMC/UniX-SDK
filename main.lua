@@ -17,7 +17,7 @@
 -- * SDK-Doc: https://wiki.roidmc.com/docs/unix-sdk
 -- * License: https://www.mozilla.org/media/MPL/2.0/index.f75d2927d3c1.txt
 -- *
--- * 2025 © RoidMC Studios
+-- * 2025-2026 © RoidMC Studios
 -- ==================================================
 
 local UDK = {
