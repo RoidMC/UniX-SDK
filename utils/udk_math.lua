@@ -357,24 +357,47 @@ function UDK_Math.FormatTimestamp(timestamp, format)
     -- 默认格式
     format = format or 'Y/M/D h:m:s'
 
-    -- 根据格式返回相应字符串
-    if format == 'Y/M/D h:m:s' then
-        return string.format("%d/%d/%d %d:%d:%d",
-            timeComponents.year, timeComponents.month, timeComponents.day,
-            timeComponents.hour, timeComponents.min, timeComponents.sec)
-    elseif format == 'Y-M-D h:m:s' then
-        return string.format("%d-%d-%d %d:%d:%d",
-            timeComponents.year, timeComponents.month, timeComponents.day,
-            timeComponents.hour, timeComponents.min, timeComponents.sec)
-    elseif format == 'D/M/Y h:m:s' then
-        return string.format("%d/%d/%d %d:%d:%d",
-            timeComponents.day, timeComponents.month, timeComponents.year,
-            timeComponents.hour, timeComponents.min, timeComponents.sec)
+    -- 格式化数字，小于10时补0
+    local function formatNumber(num)
+        return string.format("%02d", num)
+    end
+
+    local formatMap = {
+        ['Y/M/D h:m:s'] = function()
+            return string.format("%d/%s/%s %s:%s:%s",
+                timeComponents.year,
+                formatNumber(timeComponents.month),
+                formatNumber(timeComponents.day),
+                formatNumber(timeComponents.hour),
+                formatNumber(timeComponents.min),
+                formatNumber(timeComponents.sec))
+        end,
+        ['Y-M-D h:m:s'] = function()
+            return string.format("%d-%s-%s %s:%s:%s",
+                timeComponents.year,
+                formatNumber(timeComponents.month),
+                formatNumber(timeComponents.day),
+                formatNumber(timeComponents.hour),
+                formatNumber(timeComponents.min),
+                formatNumber(timeComponents.sec))
+        end,
+        ['D/M/Y h:m:s'] = function()
+            return string.format("%s/%s/%d %s:%s:%s",
+                formatNumber(timeComponents.day),
+                formatNumber(timeComponents.month),
+                timeComponents.year,
+                formatNumber(timeComponents.hour),
+                formatNumber(timeComponents.min),
+                formatNumber(timeComponents.sec))
+        end
+    }
+
+    -- 根据format选择对应的格式化函数，如果未指定或格式不匹配，则使用默认格式
+    local formatter = formatMap[format]
+    if formatter then
+        return formatter()
     else
-        -- 默认格式
-        return string.format("%d/%d/%d %d:%d:%d",
-            timeComponents.year, timeComponents.month, timeComponents.day,
-            timeComponents.hour, timeComponents.min, timeComponents.sec)
+        return formatMap['Y/M/D h:m:s']()
     end
 end
 
