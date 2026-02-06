@@ -31,6 +31,10 @@ local UDK_I18N = {}
 function UDK_I18N.I18NGetKey(key, i18n_lang, i18n_Toml)
     local currentLang = i18n_lang and i18n_lang:lower()                        -- 标准化语言代码为小写
     local i18nTable = i18n_Toml[currentLang] or i18n_Toml[currentLang:upper()] -- 尝试大写版本
+    if key == nil or key == "" then
+        local logOutput = string.format("[UDK:I18N] Empty key provided (Lang %s)", currentLang)
+        return logOutput, false
+    end
 
     if not i18nTable then
         -- 尝试不区分大小写查找语言代码

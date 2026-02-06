@@ -25,6 +25,9 @@
 ---@class UDK.UI
 local UDK_UI = {}
 
+-- 存储ScrollView中项目的表
+local scrollViewItems = {}
+
 -- 枚举映射表，仅在Lua调试使用，实际游戏内调用SDK不需要该枚举
 --local UI = {
 --    UIType = {
@@ -236,7 +239,7 @@ end
 ---|📘- 设置UI控件尺寸
 ---
 ---| `范围`：`客户端`
----@param widgetID any | any[] 要设置文本的控件ID列表
+---@param widgetID any | any[] 要设置尺寸的控件ID
 ---@param newWidth number  要设置的宽度
 ---@param newHeight number 要设置的高度
 function UDK_UI.SetUISize(widgetID, newWidth, newHeight)
@@ -253,7 +256,7 @@ end
 ---|📘- 设置UI控件位置
 ---
 ---| `范围`：`客户端`
----@param widgetID any | any[] 要设置文本的控件ID列表
+---@param widgetID any | any[] 要设置位置的控件ID
 ---@param newX number  要设置的新坐标X
 ---@param newY number 要设置的新坐标Y
 function UDK_UI.SetUIPostion(widgetID, newX, newY)
@@ -270,7 +273,7 @@ end
 ---|📘- 设置UI控件位置（以锚点为参考）
 ---
 ---| `范围`：`客户端`
----@param widgetID any | any[] 要设置文本的控件ID列表
+---@param widgetID any | any[] 要设置位置的控件ID
 ---@param data any 需要变更的数据{X,Y,Left,Right,Bottom,Top}
 function UDK_UI.SetUIPositionByAnchor(widgetID, data)
     checkIsClient("UDK.UI.SetUIPositionByAnchor")
@@ -286,7 +289,7 @@ end
 ---|📘- 设置UI控件不透明度
 ---
 ---| `范围`：`客户端`
----@param widgetID any | any[] 要设置文本的控件ID列表
+---@param widgetID any | any[] 要设置不透明度的控件ID
 ---@param newOpacity number  要设置的不透明度（范围：0-1，使用小数点）
 function UDK_UI.SetUITransparency(widgetID, newOpacity)
     checkIsClient("UDK.UI.SetUITransparency")
@@ -302,7 +305,7 @@ end
 ---|📘- 设置UI文本内容
 ---
 ---| `范围`：`客户端`
----@param widgetID any | any[] 要设置文本的控件ID列表
+---@param widgetID any | any[] 要设置文本的控件ID
 ---@param content string 要设置的文本内容
 function UDK_UI.SetUIText(widgetID, content)
     checkIsClient("UDK.UI.SetUIText")
@@ -318,7 +321,7 @@ end
 ---|📘- 设置UI文本颜色
 ---
 ---| `范围`：`客户端`
----@param widgetID any | any[] 要设置文本的控件ID列表
+---@param widgetID any | any[] 要设置文本颜色的控件ID
 ---@param hexColor string 要设置的颜色（Hex 颜色码 - 例如：#FFFFFF）
 function UDK_UI.SetUITextColor(widgetID, hexColor)
     checkIsClient("UDK.UI.SetUITextColor")
@@ -334,7 +337,7 @@ end
 ---|📘- 设置UI文本大小
 ---
 ---| `范围`：`客户端`
----@param widgetID any | any[] 要设置文本的控件ID列表
+---@param widgetID any | any[] 要设置文本的控件ID
 ---@param content number 要设置的大小（范围：15-100）
 function UDK_UI.SetUITextSize(widgetID, content)
     checkIsClient("UDK.UI.SetUITextSize")
@@ -351,7 +354,7 @@ end
 ---
 ---| `范围`：`客户端`
 ---@param imageID any 要设置的图片ID
----@param widgetID any | any[] 要设置底图的控件ID列表
+---@param widgetID any | any[] 要设置底图的控件ID
 function UDK_UI.SetUIImage(widgetID, imageID)
     checkIsClient("UDK.UI.SetUIImage")
     local oneItem = {}
@@ -363,11 +366,11 @@ function UDK_UI.SetUIImage(widgetID, imageID)
     end
 end
 
----|📘- 设置UI控件地图颜色
+---|📘- 设置UI控件底图颜色
 ---
 ---| `范围`：`客户端`
 ---@param hexColor string 要设置的颜色（Hex 颜色码 - 例如：#FFFFFF）
----@param widgetID any | any[] 要设置文本的控件ID列表
+---@param widgetID any | any[] 要设置底图颜色的控件ID
 function UDK_UI.SetUIImageColor(widgetID, hexColor)
     checkIsClient("UDK.UI.SetUIImageColor")
     local oneItem = {}
@@ -602,6 +605,71 @@ function UDK_UI.PrintTable(name, table)
         print("  [" .. tostring(k) .. "] = " .. tostring(v))
     end
     print("}")
+end
+
+---|📘- 添加控件到滚动列表
+---
+---| `范围`：`客户端`
+---@param widgetID any 滚动列表控件ID
+---@param itemID any 要控件的项目ID，可以是单个ID或ID表
+function UDK_UI.AddToScrollView(widgetID, itemID)
+    checkIsClient("UDK.UI.AddToScrollView")
+    local itemList = {}
+    if type(itemID) == "table" then
+        itemList = itemID
+    else
+        table.insert(itemList, itemID)
+    end
+
+    UI:AddToScrollView(widgetID, itemList)
+
+    -- 记录ScrollView中的项目
+    if not scrollViewItems[widgetID] then
+        scrollViewItems[widgetID] = {}
+    end
+
+    for _, id in ipairs(itemList) do
+        table.insert(scrollViewItems[widgetID], id)
+    end
+end
+
+---|📘- 添加控件到滚动列表
+---
+---| `范围`：`客户端`
+---@param widgetID any 滚动列表控件ID
+---@param itemID any 要控件的项目ID，可以是单个ID或ID表
+function UDK_UI.RemoveFromScrollView(widgetID, itemID)
+    checkIsClient("UDK.UI.RemoveFormScrollView")
+    local itemList = {}
+    if type(itemID) == "table" then
+        itemList = itemID
+    else
+        table.insert(itemList, itemID)
+    end
+
+    UI:RemoveFromScrollView(widgetID, itemList)
+
+    -- 从ScrollView记录中移除项目
+    if scrollViewItems[widgetID] then
+        for _, removeId in ipairs(itemList) do
+            for i = #scrollViewItems[widgetID], 1, -1 do
+                if scrollViewItems[widgetID][i] == removeId then
+                    table.remove(scrollViewItems[widgetID], i)
+                    break
+                end
+            end
+        end
+    end
+end
+
+---|📘- 获取滚动列表中的控件列表
+---
+---| `范围`：`客户端`
+---@param widgetID any 滚动列表控件ID
+---@return table widgetIDs 滚动列表中的控件列表
+function UDK_UI.GetScrollViewItems(widgetID)
+    checkIsClient("UDK.UI.GetScrollViewItems")
+    return scrollViewItems[widgetID] or {}
 end
 
 ---|📘- 注册按钮事件

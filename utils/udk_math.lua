@@ -338,7 +338,7 @@ end
 ---|📘- 将时间戳转换为指定格式的日期时间字符串
 ---
 ---| 支持多种日期时间显示格式
----@param timestamp number 时间戳（毫秒）
+---@param timestamp number 时间戳（秒）
 ---@param format string? 日期时间显示格式，默认为'Y/M/D h:m:s'，可选值：'Y/M/D h:m:s'、'Y-M-D h:m:s'、'D/M/Y h:m:s'
 ---@return string datetime 格式化后的日期时间字符串
 function UDK_Math.FormatTimestamp(timestamp, format)

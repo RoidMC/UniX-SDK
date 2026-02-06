@@ -46,4 +46,13 @@ function UDK_Event.FireSignEvent(eventName, playerID)
     end
 end
 
+---|📘- 发送游戏事件
+---
+---| `范围`：`服务端` | `客户端`
+---@param eventName string 事件名称
+---@param ... any 事件附带的可变参数
+function UDK_Event.FireGameEvent(eventName, ...)
+    System:FireGameEvent(eventName, ...)
+end
+
 return UDK_Event
