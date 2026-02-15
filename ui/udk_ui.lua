@@ -28,31 +28,12 @@ local UDK_UI = {}
 -- 存储ScrollView中项目的表
 local scrollViewItems = {}
 
--- 枚举映射表，仅在Lua调试使用，实际游戏内调用SDK不需要该枚举
---local UI = {
---    UIType = {
---        Promotion = 0,         -- 竞速的晋级界面
---        Countdown = 1,         -- 竞速的倒计时界面
---        TargetPoints = 2,      -- 竞速目标积分
---        CampPoints = 3,        -- 竞速双阵营积分
---        PersonalPoints = 4,    -- 竞速个人积分
---        Leaderboard = 5,       --竞速排行榜
---        HealthBar = 6,         -- 通用血条
---        Settings = 7,          -- 通用设置
---        RemainingPlayers = 8,  -- FPS剩余人数
---        MapHint = 9,           -- 通用地图提示
---        EmotesAndActions = 10, -- 表情/动作
---        QuickChat = 11,        -- 快速聊天
---        MapCover = 12,        -- 地图封面
---        MoreSetting = 13,      -- 更多设置
---        Photo = 14,           -- 拍照
---        GameSetting = 15,      -- 游戏设置
---        GameQuit = 16          -- 游戏退出
---    }
---}
+-- ==================================================
+-- * UDK UI Utils Code
+-- ==================================================
 
 -- 日志打印函数
-local function ULogPrint(level, message)
+local function uniLog(message, level)
     if level == "INFO" then
         Log:PrintLog(message)
     elseif level == "WARNING" then
@@ -70,9 +51,17 @@ end
 local function checkIsClient(apiName)
     if not System:IsClient() then
         local logOutput = string.format("[UDK:System] 接口 %s 仅允许在客户端侧调用", apiName)
-        ULogPrint("ERROR", logOutput)
+        uniLog(logOutput, "ERROR")
         return
     end
+end
+
+-- 统一的数组归一化函数
+local function normalizeWidgetId(widgetID)
+    if type(widgetID) == "table" then
+        return widgetID
+    end
+    return { widgetID }
 end
 
 ---|📘- 自动按钮处理器
@@ -83,7 +72,7 @@ local function AutoButtonHandler(buttonData, event, actMap)
 
     if not ActMapping and type(ActMapping) ~= "table" then
         --local logOutput = "[UDK:UI] ButtonEvent按钮自动处理失败，请检查按钮ID配置是否正确"
-        --ULogPrint("ERROR", logOutput)
+        --uniLog(logOutput,"ERROR")
         return
     end
 
@@ -91,6 +80,10 @@ local function AutoButtonHandler(buttonData, event, actMap)
         ActMapping[buttonData.BtnID][event](buttonData.BtnID, buttonData.PressX, buttonData.PressY) -- 执行对应事件处理
     end
 end
+
+-- ==================================================
+-- * UDK UI Core Functions
+-- ==================================================
 
 ---|📘- 设置UI可见性
 ---
@@ -112,56 +105,24 @@ function UDK_UI.SetUIVisibility(showWidgetIDs, hideWidgetIDs)
     if type(hideWidgetIDs) == "boolean" then
         if hideWidgetIDs then
             -- 显示控件
-            local oneItem = {}
-            if type(showWidgetIDs) == "table" then
-                UI:SetVisibility(showWidgetIDs, true)
-            else
-                table.insert(oneItem, showWidgetIDs)
-                UI:SetVisibility(oneItem, true)
-            end
+            UI:SetVisibility(normalizeWidgetId(showWidgetIDs), true)
         else
             -- 隐藏控件
-            local oneItem = {}
-            if type(showWidgetIDs) == "table" then
-                UI:SetVisibility(showWidgetIDs, false)
-            else
-                table.insert(oneItem, showWidgetIDs)
-                UI:SetVisibility(oneItem, false)
-            end
+            UI:SetVisibility(normalizeWidgetId(hideWidgetIDs), false)
         end
         return
     end
 
     -- 兼容性处理：支持传统调用方式 UDK_UI.SetUIVisibility(widgetID)
     if hideWidgetIDs == nil then
-        local oneItem = {}
-        if type(showWidgetIDs) == "table" then
-            UI:SetVisibility(showWidgetIDs, true)
-        else
-            table.insert(oneItem, showWidgetIDs)
-            UI:SetVisibility(oneItem, true)
-        end
+        UI:SetVisibility(normalizeWidgetId(showWidgetIDs), true)
         return
     end
 
     -- 标准调用方式：处理隐藏控件
-    local oneItem
-    if type(hideWidgetIDs) == "table" then
-        UI:SetVisibility(hideWidgetIDs, false)
-    else
-        oneItem = {}
-        table.insert(oneItem, hideWidgetIDs)
-        UI:SetVisibility(oneItem, false)
-    end
-
+    UI:SetVisibility(normalizeWidgetId(hideWidgetIDs), false)
     -- 标准调用方式：处理显示控件
-    if type(showWidgetIDs) == "table" then
-        UI:SetVisibility(showWidgetIDs, true)
-    else
-        oneItem = {}
-        table.insert(oneItem, showWidgetIDs)
-        UI:SetVisibility(oneItem, true)
-    end
+    UI:SetVisibility(normalizeWidgetId(showWidgetIDs), true)
 end
 
 ---| 📘- 设置UI控件的显隐（对控件进行创建和销毁）
@@ -184,56 +145,24 @@ function UDK_UI.SetUIOnShow(showWidgetIDs, hideWidgetIDs)
     if type(hideWidgetIDs) == "boolean" then
         if hideWidgetIDs then
             -- 显示控件
-            local oneItem = {}
-            if type(showWidgetIDs) == "table" then
-                UI:OnShow(showWidgetIDs, true)
-            else
-                table.insert(oneItem, showWidgetIDs)
-                UI:OnShow(oneItem, true)
-            end
+            UI:OnShow(normalizeWidgetId(showWidgetIDs), true)
         else
             -- 隐藏控件
-            local oneItem = {}
-            if type(showWidgetIDs) == "table" then
-                UI:OnShow(showWidgetIDs, false)
-            else
-                table.insert(oneItem, showWidgetIDs)
-                UI:OnShow(oneItem, false)
-            end
+            UI:OnShow(normalizeWidgetId(showWidgetIDs), false)
         end
         return
     end
 
     -- 兼容性处理：支持传统调用方式 UDK_UI.SetUIVisibility(widgetID)
     if hideWidgetIDs == nil then
-        local oneItem = {}
-        if type(showWidgetIDs) == "table" then
-            UI:OnShow(showWidgetIDs, true)
-        else
-            table.insert(oneItem, showWidgetIDs)
-            UI:OnShow(oneItem, true)
-        end
+        UI:OnShow(normalizeWidgetId(showWidgetIDs), true)
         return
     end
 
     -- 标准调用方式：处理隐藏控件
-    local oneItem
-    if type(hideWidgetIDs) == "table" then
-        UI:OnShow(hideWidgetIDs, false)
-    else
-        oneItem = {}
-        table.insert(oneItem, hideWidgetIDs)
-        UI:OnShow(oneItem, false)
-    end
-
+    UI:OnShow(normalizeWidgetId(hideWidgetIDs), false)
     -- 标准调用方式：处理显示控件
-    if type(showWidgetIDs) == "table" then
-        UI:OnShow(showWidgetIDs, true)
-    else
-        oneItem = {}
-        table.insert(oneItem, showWidgetIDs)
-        UI:OnShow(oneItem, true)
-    end
+    UI:OnShow(normalizeWidgetId(showWidgetIDs), true)
 end
 
 ---|📘- 设置UI控件尺寸
@@ -244,13 +173,7 @@ end
 ---@param newHeight number 要设置的高度
 function UDK_UI.SetUISize(widgetID, newWidth, newHeight)
     checkIsClient("UDK.UI.SetUISize")
-    local oneItem = {}
-    if type(widgetID) == "table" then
-        UI:SetSize(widgetID, newWidth, newHeight)
-    else
-        table.insert(oneItem, widgetID)
-        UI:SetSize(oneItem, newWidth, newHeight)
-    end
+    UI:SetSize(normalizeWidgetId(widgetID), newWidth, newHeight)
 end
 
 ---|📘- 设置UI控件位置
@@ -261,13 +184,7 @@ end
 ---@param newY number 要设置的新坐标Y
 function UDK_UI.SetUIPostion(widgetID, newX, newY)
     checkIsClient("UDK.UI.SetUIPostion")
-    local oneItem = {}
-    if type(widgetID) == "table" then
-        UI:SetPosition(widgetID, newX, newY)
-    else
-        table.insert(oneItem, widgetID)
-        UI:SetPosition(oneItem, newX, newY)
-    end
+    UI:SetPosition(normalizeWidgetId(widgetID), newX, newY)
 end
 
 ---|📘- 设置UI控件位置（以锚点为参考）
@@ -277,13 +194,7 @@ end
 ---@param data any 需要变更的数据{X,Y,Left,Right,Bottom,Top}
 function UDK_UI.SetUIPositionByAnchor(widgetID, data)
     checkIsClient("UDK.UI.SetUIPositionByAnchor")
-    local oneItem = {}
-    if type(widgetID) == "table" then
-        UI:SetPositionByAnchor(widgetID, data)
-    else
-        table.insert(oneItem, widgetID)
-        UI:SetPositionByAnchor(oneItem, data)
-    end
+    UI:SetPositionByAnchor(normalizeWidgetId(widgetID), data)
 end
 
 ---|📘- 设置UI控件不透明度
@@ -293,13 +204,7 @@ end
 ---@param newOpacity number  要设置的不透明度（范围：0-1，使用小数点）
 function UDK_UI.SetUITransparency(widgetID, newOpacity)
     checkIsClient("UDK.UI.SetUITransparency")
-    local oneItem = {}
-    if type(widgetID) == "table" then
-        UI:SetTransparency(widgetID, newOpacity)
-    else
-        table.insert(oneItem, widgetID)
-        UI:SetTransparency(oneItem, newOpacity)
-    end
+    UI:SetTransparency(normalizeWidgetId(widgetID), newOpacity)
 end
 
 ---|📘- 设置UI文本内容
@@ -309,13 +214,7 @@ end
 ---@param content string 要设置的文本内容
 function UDK_UI.SetUIText(widgetID, content)
     checkIsClient("UDK.UI.SetUIText")
-    local oneItem = {}
-    if type(widgetID) == "table" then
-        UI:SetText(widgetID, content)
-    else
-        table.insert(oneItem, widgetID)
-        UI:SetText(oneItem, content)
-    end
+    UI:SetText(normalizeWidgetId(widgetID), content)
 end
 
 ---|📘- 设置UI文本颜色
@@ -325,13 +224,7 @@ end
 ---@param hexColor string 要设置的颜色（Hex 颜色码 - 例如：#FFFFFF）
 function UDK_UI.SetUITextColor(widgetID, hexColor)
     checkIsClient("UDK.UI.SetUITextColor")
-    local oneItem = {}
-    if type(widgetID) == "table" then
-        UI:SetTextColor(widgetID, hexColor)
-    else
-        table.insert(oneItem, widgetID)
-        UI:SetTextColor(oneItem, hexColor)
-    end
+    UI:SetTextColor(normalizeWidgetId(widgetID), hexColor)
 end
 
 ---|📘- 设置UI文本大小
@@ -341,13 +234,7 @@ end
 ---@param content number 要设置的大小（范围：15-100）
 function UDK_UI.SetUITextSize(widgetID, content)
     checkIsClient("UDK.UI.SetUITextSize")
-    local oneItem = {}
-    if type(widgetID) == "table" then
-        UI:SetTextSize(widgetID, content)
-    else
-        table.insert(oneItem, widgetID)
-        UI:SetTextSize(oneItem, content)
-    end
+    UI:SetTextSize(normalizeWidgetId(widgetID), content)
 end
 
 ---|📘- 设置UI控件底图
@@ -357,13 +244,7 @@ end
 ---@param widgetID any | any[] 要设置底图的控件ID
 function UDK_UI.SetUIImage(widgetID, imageID)
     checkIsClient("UDK.UI.SetUIImage")
-    local oneItem = {}
-    if type(widgetID) == "table" then
-        UI:SetImage(widgetID, imageID)
-    else
-        table.insert(oneItem, widgetID)
-        UI:SetImage(oneItem, imageID)
-    end
+    UI:SetImage(normalizeWidgetId(widgetID), imageID)
 end
 
 ---|📘- 设置UI控件底图颜色
@@ -373,13 +254,7 @@ end
 ---@param widgetID any | any[] 要设置底图颜色的控件ID
 function UDK_UI.SetUIImageColor(widgetID, hexColor)
     checkIsClient("UDK.UI.SetUIImageColor")
-    local oneItem = {}
-    if type(widgetID) == "table" then
-        UI:SetImageColor(widgetID, hexColor)
-    else
-        table.insert(oneItem, widgetID)
-        UI:SetImageColor(oneItem, hexColor)
-    end
+    UI:SetImageColor(normalizeWidgetId(widgetID), hexColor)
 end
 
 ---|📘- 设置UI控件进度条最大值
@@ -389,13 +264,7 @@ end
 ---@param maxValue number 要设置的最大值（范围：0-100）
 function UDK_UI.SetUIProgressMaxValue(widgetID, maxValue)
     checkIsClient("UDK.UI.SetUIProgressMaxValue")
-    local oneItem = {}
-    if type(widgetID) == "table" then
-        UI:SetProgressMaxValue(widgetID, maxValue)
-    else
-        table.insert(oneItem, widgetID)
-        UI:SetProgressMaxValue(oneItem, maxValue)
-    end
+    UI:SetProgressMaxValue(normalizeWidgetId(widgetID), maxValue)
 end
 
 ---|📘- 设置UI控件进度条当前值
@@ -405,13 +274,7 @@ end
 ---@param currentValue number 要设置的当前值
 function UDK_UI.SetUIProgressCurrentValue(widgetID, currentValue)
     checkIsClient("UDK.UI.SetUIProgressCurrentValue")
-    local oneItem = {}
-    if type(widgetID) == "table" then
-        UI:SetProgressCurrentValue(widgetID, currentValue)
-    else
-        table.insert(oneItem, widgetID)
-        UI:SetProgressCurrentValue(oneItem, currentValue)
-    end
+    UI:SetProgressCurrentValue(normalizeWidgetId(widgetID), currentValue)
 end
 
 ---|📘- 设置UI控件进度条背景底图
@@ -419,15 +282,10 @@ end
 ---| `范围`：`客户端`
 ---@param widgetID any 要设置的控件ID
 ---@param imageID any 要设置的图片ID
-function UDK_UI.SetUIProgressBackgroundImage(widgetID, imageID)
+---@param isCustomImage boolean? 是否是自定义图片
+function UDK_UI.SetUIProgressBackgroundImage(widgetID, imageID, isCustomImage)
     checkIsClient("UDK.UI.SetUIProgressBackgroundImage")
-    local oneItem = {}
-    if type(widgetID) == "table" then
-        UI:SetProgressBackgroundImage(widgetID, imageID)
-    else
-        table.insert(oneItem, widgetID)
-        UI:SetProgressBackgroundImage(oneItem, imageID)
-    end
+    UI:SetProgressBackgroundImage(normalizeWidgetId(widgetID), imageID, isCustomImage)
 end
 
 ---|📘- 设置UI控件 - 功能/社交/头像昵称控件
@@ -440,8 +298,6 @@ end
 ---@param setType string 要设置的类型（Icon：头像，Name：昵称，Both：头像+昵称）
 function UDK_UI.SetPlayerIconAndName(widgetID, playerID, setType)
     checkIsClient("UDK.UI.SetPlayerIconAndName")
-    --功能/社交/头像昵称控件
-    local oneItem = {}
     ---@return UI.AvatarType AvatarType 头像设置类型：Icon|NickName|Both
     local function getAvatarType(param)
         if param == "Icon" then
@@ -454,12 +310,7 @@ function UDK_UI.SetPlayerIconAndName(widgetID, playerID, setType)
             return UI.AvatarType.Both
         end
     end
-    if type(widgetID) == "table" then
-        UI:SetPlayerIconAndName(widgetID, playerID, getAvatarType(setType))
-    else
-        table.insert(oneItem, widgetID)
-        UI:SetPlayerIconAndName(oneItem, playerID, getAvatarType(setType))
-    end
+    UI:SetPlayerIconAndName(normalizeWidgetId(widgetID), playerID, getAvatarType(setType))
 end
 
 ---|📘- 获取UI控件尺寸
@@ -559,7 +410,7 @@ function UDK_UI.SetNativeInterfaceVisible(interfaceType, isVisible)
             logIndex = v + 1
             logOutput = string.format(logStr, nativeInterfaceMap[logIndex].desc, nativeInterfaceMap[logIndex].type,
                 isVisible, queryType, v)
-            ULogPrint("INFO", logOutput)
+            uniLog(logOutput, "INFO")
         else
             for _, entry in ipairs(nativeInterfaceMap) do
                 if entry.match_str == v then
@@ -567,7 +418,7 @@ function UDK_UI.SetNativeInterfaceVisible(interfaceType, isVisible)
                     queryType = "String"
                     UI:SetNativeInterfaceVisible(entry.type, isVisible)
                     logOutput = string.format(logStr, entry.desc, entry.type, isVisible, queryType, entry.match_str)
-                    ULogPrint("INFO", logOutput)
+                    uniLog(logOutput, "INFO")
                     break
                 end
             end
@@ -685,7 +536,7 @@ function UDK_UI.RegisterButtonEvent(buttonID, callbackActMap)
     local ItemList = {}
     if buttonID == nil then
         logOutput = "[UDK:UI] RegisterButtonEvent: 参数缺失, ButtonID 不能为空"
-        ULogPrint("ERROR", logOutput)
+        uniLog(logOutput, "ERROR")
         return
     end
     if type(buttonID) ~= "table" and type(buttonID) == "number" then
@@ -745,7 +596,7 @@ function UDK_UI.UnRegisterButtonEvent(buttonID)
     local ItemList = {}
     if buttonID == nil then
         logOutput = "[UDK:UI] UnRegisterButtonEvent: 参数缺失, ButtonID 不能为空"
-        ULogPrint("ERROR", logOutput)
+        uniLog(logOutput, "ERROR")
         return
     end
     if type(buttonID) ~= "table" and type(buttonID) == "number" then
