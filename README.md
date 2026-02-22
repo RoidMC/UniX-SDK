@@ -8,7 +8,7 @@
 ![GitHub Forks](https://img.shields.io/github/forks/RoidMC/UniX-SDK?style=flat-square)
 ![GitHub Issues](https://img.shields.io/github/issues/RoidMC/UniX-SDK?style=flat-square)
 ![GitHub Last Updated](https://img.shields.io/github/last-commit/RoidMC/UniX-SDK?style=flat-square)
-![SDK Version](https://img.shields.io/badge/version-0.0.3-blue?style=flat-square)
+![SDK Version](https://img.shields.io/badge/version-0.0.4-blue?style=flat-square)
 
 - 🪄 **为元梦之星Lua2.0开发**
 - 📚 **包含常用功能封装**

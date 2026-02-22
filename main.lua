@@ -1,5 +1,5 @@
 -- ==================================================
--- * UniX SDK Rev 0.0.3
+-- * UniX SDK Rev 0.0.4
 -- *
 -- * This source code is licensed under the MPL-2.0 license.
 -- * See the LICENSE file in the root directory for details.
@@ -23,7 +23,7 @@
 local UDK = {
     -- UDK UI
     UI = require("Public.UniX-SDK.ui.udk_ui"),
-    Animation = require("Public.UniX-SDK.ui.udk_animation"),
+    Animator = require("Public.UniX-SDK.ui.udk_animator"),
     -- UDK Utils
     Math = require("Public.UniX-SDK.utils.udk_math"),
     Array = require("Public.UniX-SDK.utils.udk_array"),
