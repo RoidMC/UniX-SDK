@@ -29,6 +29,14 @@ UAnimatorAdapter_2D.SupportType = {
     TextColor = "TextColor",
 }
 
+-- 统一的数组归一化函数
+local function normalizeWidgetId(widgetID)
+    if type(widgetID) == "table" then
+        return widgetID
+    end
+    return { widgetID }
+end
+
 -- 2D 适配器支持的动画动作
 UAnimatorAdapter_2D.Actions = {
     Fade = function(widgetID, value)
@@ -59,14 +67,6 @@ UAnimatorAdapter_2D.Actions = {
         UI:SetTextColor(normalizeWidgetId(widgetID), value)
     end,
 }
-
--- 统一的数组归一化函数
-local function normalizeWidgetId(widgetID)
-    if type(widgetID) == "table" then
-        return widgetID
-    end
-    return { widgetID }
-end
 
 -- 2D 适配器获取初始值
 function UAnimatorAdapter_2D.GetInitialValue(step, target, targetType)
