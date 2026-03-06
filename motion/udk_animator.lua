@@ -18,14 +18,16 @@
 ---@class UDK.Animator
 local UDK_Animator = {}
 local Tween = require("Public.UniX-SDK.lib.tween")
+local UAnimator_2DAdapter = require("Public.UniX-SDK.motion.plugins.adapter.2d_adapter") -- 内置2D适配器
+local UAnimator_3DAdapter = require("Public.UniX-SDK.motion.plugins.adapter.3d_adapter") -- 内置3D适配器
 
 -- UDK Animator 配置
 UDK_Animator.Config = {
-    MAX_NESTING_DEPTH = 2,   -- 最大嵌套深度
-    DEBUG = false,            -- 是否启用调试日志
-    AUTO_STOP_CONFLICT = true,-- 是否自动停止冲突动画
-    TickFPS = 60,             -- 动画更新频率（FPS），优先级高于TickDeltaTime
-    TickDeltaTime = nil,      -- 可选：直接指定时间间隔（秒），TickFPS 未设置时使用
+    MAX_NESTING_DEPTH = 2,     -- 最大嵌套深度
+    DEBUG = false,             -- 是否启用调试日志
+    AUTO_STOP_CONFLICT = true, -- 是否自动停止冲突动画
+    TickFPS = 60,              -- 动画更新频率（FPS），优先级高于TickDeltaTime
+    TickDeltaTime = nil,       -- 可选：直接指定时间间隔（秒），TickFPS 未设置时使用
 }
 
 UDK_Animator.Actions = {}     -- 内置动画行为
@@ -38,16 +40,21 @@ UDK_Animator.ActionType = {
 }
 
 -- 动画类型
-UDK_Animator.AnimType = {
-    Fade = "Fade",
-    Move = "Move",
-    Scale = "Scale",
-    Rotate = "Rotate",
-    Opacity = "Opacity",
-    Size = "Size",
-    Color = "Color",
-    TextColor = "TextColor",
-}
+UDK_Animator.AnimType = {}
+-- 从适配器中复制支持的动画类型
+local function collectSupportTypes()
+    -- 从2D适配器中复制
+    for key, value in pairs(UAnimator_2DAdapter.SupportType) do
+        UDK_Animator.AnimType[key] = value
+    end
+    -- 从3D适配器中复制（未来扩展用）
+    for key, value in pairs(UAnimator_3DAdapter.SupportType) do
+        UDK_Animator.AnimType[key] = value
+    end
+end
+
+-- 初始化收集支持的动画类型
+collectSupportTypes()
 
 -- 动画控制器类型
 UDK_Animator.AnimControllerType = {
@@ -79,14 +86,6 @@ local stepStatus = {
 -- * UDK Animator Utils Code
 -- ==================================================
 
--- 统一的数组归一化函数
-local function normalizeWidgetId(widgetID)
-    if type(widgetID) == "table" then
-        return widgetID
-    end
-    return { widgetID }
-end
-
 -- 统一日志函数
 local function uniLog(type, msg)
     -- 只有 Error 和 Warn 级别，或者 DEBUG 模式开启时才输出 Info 日志
@@ -113,38 +112,31 @@ end
 -- * UDK Animator BuiltIn Actions / Init
 -- ==================================================
 local builtinActionsConfig = {
-    Fade = function(widgetID, value)
-        UI:SetTransparency(normalizeWidgetId(widgetID), value)
-    end,
-    Move = function(widgetID, value)
-        UI:SetPosition(normalizeWidgetId(widgetID), value.x, value.y)
-    end,
-    Scale = function(widgetID, value)
-        local ids = normalizeWidgetId(widgetID)
-        for _, v in ipairs(ids) do
-            UI:SetRenderScale(v, value.x, value.y)
-        end
-    end,
-    Rotate = function(widgetID, value)
-        UI:SetAngle(normalizeWidgetId(widgetID), value)
-    end,
-    Opacity = function(widgetID, value)
-        UI:SetTransparency(normalizeWidgetId(widgetID), value)
-    end,
-    Size = function(widgetID, value)
-        UI:SetSize(normalizeWidgetId(widgetID), value.width, value.height)
-    end,
-    Color = function(widgetID, value)
-        UI:SetImageColor(normalizeWidgetId(widgetID), value)
-    end,
-    TextColor = function(widgetID, value)
-        UI:SetTextColor(normalizeWidgetId(widgetID), value)
-    end,
+    UAnimator_2DAdapter.Actions,
+    UAnimator_3DAdapter.Actions,
+    -- 这里可以添加自定义的硬编码动画行为
+    -- CustomFade = function(widgetID, value)
+    --     UI:SetTransparency(normalizeWidgetId(widgetID), value)
+    -- end,
 }
 
-for name, handler in pairs(builtinActionsConfig) do
-    UDK_Animator.Actions[name] = handler
+-- 从适配器中注册内置动画行为
+local function registerBuiltinActions()
+    for _, adapterActions in ipairs(builtinActionsConfig) do
+        for name, handler in pairs(adapterActions) do
+            UDK_Animator.Actions[name] = handler
+        end
+    end
+    -- 注册硬编码的自定义动画行为
+    for name, handler in pairs(builtinActionsConfig) do
+        if type(handler) == "function" then
+            UDK_Animator.Actions[name] = handler
+        end
+    end
 end
+
+-- 初始化注册内置动画行为
+registerBuiltinActions()
 
 -- ==================================================
 -- * UDK Animator Swift Database
@@ -375,31 +367,9 @@ local function getInitialValue(step, targets)
     local targetType = target.type or step.targetType or "UI"
 
     -- 根据动画类型获取初始值
-    if step.type == "Fade" and targetType == "UI" then
-        return 1
-    elseif step.type == "Move" and targetType == "UI" then
-        return UI:GetPosition(target.id) or { x = 0, y = 0 }
-    elseif step.type == "Scale" and targetType == "UI" then
-        return { x = 1, y = 1 }
-    elseif step.type == "Rotate" and targetType == "UI" then
-        return UI:GetAngle(target.id) or 0
-    elseif step.type == "Size" and targetType == "UI" then
-        local size = UI:GetSize(target.id)
-        return size or { width = 100, height = 100 }
-    end
+    local initialValue = UAnimator_2DAdapter.GetInitialValue(step, target, targetType)
 
-    return nil
-end
-
---- 将轨道重置为默认状态
---- @param track table 轨道对象
-local function resetTrackToDefault(track)
-    local defaultValue = getInitialValue(track, track.targets)
-    if defaultValue ~= nil then
-        for _, target in ipairs(track.targets) do
-            applyTrackValue(track, defaultValue)
-        end
-    end
+    return nil or initialValue
 end
 
 -- ==================================================
@@ -493,8 +463,10 @@ local function buildTimeline(steps, baseTime, parentStepID, mode, parentStepCoun
                 end
             end
 
-            uniLog("Info", string.format("  处理step: type=%s, offsetTime=%.2f, delayStart=%.2f, totalAxisLength=%.2f, animDuration=%.2f, mode=%s",
-                step.type, offsetTime, delayStart, totalAxisLength, step.duration, mode))
+            uniLog("Info",
+                string.format(
+                    "  处理step: type=%s, offsetTime=%.2f, delayStart=%.2f, totalAxisLength=%.2f, animDuration=%.2f, mode=%s",
+                    step.type, offsetTime, delayStart, totalAxisLength, step.duration, mode))
 
             -- 计算开始时间和结束时间
             -- Parallel 模式下忽略 delayStart，所有动画从 offsetTime 开始
@@ -626,7 +598,7 @@ local function startScheduler(scheduler)
     scheduler.activeTracks = {}
     scheduler.triggeredEvents = {}
 
-        -- 初始化所有轨道状态
+    -- 初始化所有轨道状态
     for _, track in ipairs(scheduler.timeline.tracks) do
         scheduler.activeTracks[track.trackId] = {
             track = track,
@@ -829,6 +801,17 @@ local function applyTrackValue(track, value)
     end
 end
 
+--- 将轨道重置为默认状态
+--- @param track table 轨道对象
+local function resetTrackToDefault(track)
+    local defaultValue = getInitialValue(track, track.targets)
+    if defaultValue ~= nil then
+        for _, target in ipairs(track.targets) do
+            applyTrackValue(track, defaultValue)
+        end
+    end
+end
+
 --- 更新单个轨道
 --- @param scheduler table 调度器对象
 --- @param track table 轨道对象
@@ -850,7 +833,9 @@ local function updateTrack(scheduler, track, trackState, currentTime)
             trackState.cycleStartTime = track.startTime
             trackState.cycleEndTime = track.startTime + track.animDuration
 
-            uniLog("Info", string.format("轨道 %s 开始, totalAxisLength=%.2f, animDuration=%.2f", track.trackId, track.totalAxisLength, track.animDuration))
+            uniLog("Info",
+                string.format("轨道 %s 开始, totalAxisLength=%.2f, animDuration=%.2f", track.trackId, track.totalAxisLength,
+                    track.animDuration))
 
             -- 安全触发onStart回调
             if track.callbacks.onStart then
@@ -946,7 +931,7 @@ local function updateTrack(scheduler, track, trackState, currentTime)
             end
         else
             -- 没有循环配置或循环次数已用完,整个序列完成
-            trackState.completed = true  -- 直接标记为完成，不需要等待总轴长度
+            trackState.completed = true -- 直接标记为完成，不需要等待总轴长度
             return
         end
     end
@@ -979,7 +964,8 @@ local function updateTrack(scheduler, track, trackState, currentTime)
         end
 
         -- 插值计算当前值
-        trackState.currentValue = interpolateValue(effectiveFrom, effectiveTo, relativeTime, track.animDuration, track.easing)
+        trackState.currentValue = interpolateValue(effectiveFrom, effectiveTo, relativeTime, track.animDuration,
+            track.easing)
 
         -- 安全应用值到目标
         local success, err = xpcall(function()
@@ -1048,7 +1034,7 @@ end
 --- 启动或停止全局定时器
 local updateLock = false  -- 防止递归调用
 local lastFrameTime = 0   -- 上一帧时间戳（毫秒）
-local timeAccumulator = 0  -- 时间累积器
+local timeAccumulator = 0 -- 时间累积器
 local function updateGlobalTimer()
     if schedulerTimer then
         TimerManager:RemoveTimer(schedulerTimer)
@@ -1294,7 +1280,6 @@ function UDK_Animator.AnimResume(animId)
 
     return false
 end
-
 
 ---|📘- 重置动画到默认状态
 ---@param animId string 动画实例ID
